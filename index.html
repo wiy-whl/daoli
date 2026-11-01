@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>兼职蜂 · 大学生周末兼职撮合平台</title>
+<style>
+  :root{
+    --brand:#F27B13; --brand-deep:#D96A0D; --ink:#201A12; --sub:#7A7060;
+    --bg:#FAF6EF; --surface:#FFFFFF; --border:#EBE1D2;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    font-family:"PingFang SC","HarmonyOS Sans SC","MiSans","Source Han Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='72' viewBox='0 0 42 72'%3E%3Cg fill='none' stroke='%23E4D6BC' stroke-opacity='.5'%3E%3Cpath d='M21 0 42 12 42 36 21 48 0 36 0 12Z'/%3E%3Cpath d='M0 36 21 48 21 72 0 84 -21 72 -21 48Z'/%3E%3Cpath d='M42 36 63 48 63 72 42 84 21 72 21 48Z'/%3E%3C/g%3E%3C/svg%3E"),
+      var(--bg);
+    color:var(--ink);
+    display:flex;flex-direction:column;
+  }
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 20px}
+  .wrap{max-width:560px;width:100%;text-align:center}
+  .mark{
+    width:72px;height:72px;margin:0 auto 24px;border-radius:20px;
+    background:linear-gradient(135deg,var(--brand),#FFB25C);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 16px 40px -12px rgba(242,123,19,.45);
+  }
+  .mark svg{width:40px;height:40px}
+  h1{font-size:30px;font-weight:800;letter-spacing:.01em}
+  h1 .dot{color:var(--brand)}
+  .tagline{margin-top:12px;font-size:15px;color:var(--sub);line-height:1.8}
+  .status{
+    margin:32px auto 0;display:inline-flex;align-items:center;gap:8px;
+    background:var(--surface);border:1px solid var(--border);border-radius:999px;
+    padding:8px 18px;font-size:13px;color:var(--ink);font-weight:600;
+    box-shadow:0 6px 16px -6px rgba(32,26,18,.12);
+  }
+  .pulse{width:8px;height:8px;border-radius:50%;background:#1E9E6A;animation:p 1.4s ease-in-out infinite}
+  @keyframes p{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+  .grid{margin-top:28px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .cell{
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 10px;
+  }
+  .cell b{display:block;font-size:14px;font-weight:700}
+  .cell span{display:block;margin-top:4px;font-size:12px;color:var(--sub)}
+  footer{padding:20px;text-align:center;font-size:12px;color:var(--sub)}
+  @media (max-width:480px){h1{font-size:24px}.grid{grid-template-columns:1fr 1fr 1fr;gap:8px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="wrap">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+        <path d="M12 22V12"/><path d="m8.5 9.5 3.5 2.5 3.5-2.5"/>
+      </svg>
+    </div>
+    <h1>兼职蜂<span class="dot"> · </span>大学生周末兼职撮合平台</h1>
+    <p class="tagline">连接大学生与周边商家的短期用工需求<br>时段匹配 · 距离优先 · 平台担保结算 · 零押金</p>
+    <div class="status"><span class="pulse"></span>原型构建中，即将上线</div>
+    <div class="grid">
+      <div class="cell"><b>学生端</b><span>职位大厅 · 匹配 · 日程</span></div>
+      <div class="cell"><b>商家端</b><span>发单 · 筛人 · 排班</span></div>
+      <div class="cell"><b>保障体系</b><span>实名 · 担保 · 信用分</span></div>
+    </div>
+  </div>
+</main>
+<footer>本页面为产品原型部署占位页，完整交互原型将在同一地址持续更新</footer>
+</body>
+</html>
