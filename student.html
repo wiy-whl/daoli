@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>兼职蜂 · 学生端原型</title>
+<meta name="description" content="兼职蜂学生端原型：职位大厅、智能匹配、周末日程与个人中心。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 80'%3E%3Cpath d='M36 4 66 22 66 58 36 76 6 58 6 22Z' fill='%23F27B13'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="student.css">
+</head>
+<body class="hex-bg">
+
+<div class="stage">
+
+  <!-- 手机壳 -->
+  <div class="phone">
+    <div class="screen">
+
+      <!-- 状态栏模拟 -->
+      <div class="statusbar">
+        <span class="num">09:41</span>
+        <div class="sb-icons">
+          <span class="sig" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#i-wifi"/></svg>
+          <span class="battery" aria-hidden="true"><i></i></span>
+        </div>
+      </div>
+
+      <!-- 应用头部 -->
+      <div class="apphead">
+        <div class="brand">
+          <svg class="logo-mark" viewBox="0 0 72 80" aria-hidden="true"><path d="M36 4 66 22 66 58 36 76 6 58 6 22Z" fill="#F27B13"/><path d="M36 14 57 27 57 53 36 66 15 53 15 27Z" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/></svg>
+          兼职蜂
+        </div>
+        <button class="h-bell" id="bellBtn" aria-label="通知">
+          <svg class="icon" aria-hidden="true"><use href="#i-bell"/></svg>
+          <i class="dot"></i>
+        </button>
+      </div>
+
+      <!-- 页面区 -->
+      <main class="pages">
+
+        <!-- Tab1 职位大厅 -->
+        <section class="page fade-in" id="page-jobs">
+          <div class="search-box">
+            <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+            <input class="input" id="kw" type="search" placeholder="搜索职位、商家或关键词">
+          </div>
+          <div id="jobFilters">
+            <div class="chips scroll f-row" id="catChips"></div>
+            <div class="chips scroll f-row">
+              <button class="chip on" data-g="day" data-v="all">全部</button>
+              <button class="chip" data-g="day" data-v="sat">周六</button>
+              <button class="chip" data-g="day" data-v="sun">周日</button>
+              <span class="f-sep"></span>
+              <button class="chip on" data-g="sort" data-v="smart">智能推荐</button>
+              <button class="chip" data-g="sort" data-v="pay">时薪最高</button>
+              <button class="chip" data-g="sort" data-v="dist">距离最近</button>
+            </div>
+          </div>
+          <div class="list" id="jobList"></div>
+        </section>
+
+        <!-- Tab2 智能匹配 -->
+        <section class="page" id="page-match" hidden>
+          <div class="card match-intro">
+            <div class="mi-top">
+              <span class="mi-ico"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-zap"/></svg></span>
+              <div>
+                <b>为你智能排序</b>
+                <p>根据你的空闲时段、技能与信用分智能排序</p>
+              </div>
+            </div>
+            <div class="mi-ft">
+              <span class="kv"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg>当前空闲：<b class="num" id="ftSummary"></b></span>
+              <button class="btn btn-ghost btn-sm" data-act="ft-edit">完善空闲时段</button>
+            </div>
+          </div>
+          <div class="list" id="matchList"></div>
+        </section>
+
+        <!-- Tab3 日程 -->
+        <section class="page" id="page-schedule" hidden>
+          <div class="sch-head">
+            <h3>本周末日程</h3>
+            <p>11.1 周六 - 11.2 周日</p>
+          </div>
+          <div class="list" id="scheduleBody"></div>
+        </section>
+
+        <!-- Tab4 我的 -->
+        <section class="page" id="page-me" hidden></section>
+
+      </main>
+
+      <!-- 底部 Tab 栏 -->
+      <nav class="tabbar">
+        <button class="tab on" data-tab="jobs">
+          <svg class="icon" aria-hidden="true"><use href="#i-briefcase"/></svg><span>职位大厅</span>
+        </button>
+        <button class="tab" data-tab="match">
+          <svg class="icon" aria-hidden="true"><use href="#i-zap"/></svg><span>智能匹配</span>
+        </button>
+        <button class="tab" data-tab="schedule">
+          <svg class="icon" aria-hidden="true"><use href="#i-calendar"/></svg><span>日程</span>
+        </button>
+        <button class="tab" data-tab="me">
+          <svg class="icon" aria-hidden="true"><use href="#i-user"/></svg><span>我的</span>
+        </button>
+      </nav>
+
+      <!-- 职位详情底部弹层（挂在屏幕容器内） -->
+      <div class="sheet-mask" id="sheetMask"></div>
+      <div class="sheet" id="jobSheet">
+        <div class="sheet-grip"></div>
+        <div class="sheet-body" id="sheetBody"></div>
+        <div class="sheet-foot" id="sheetFoot"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 说明面板 -->
+  <aside class="side">
+    <div class="card side-card">
+      <span class="side-tag">STUDENT · 学生端</span>
+      <h2>学生端 · 原型说明</h2>
+      <p class="side-sub">以大二学生「林小满」的视角，体验从找兼职、选时段报名到排班结算的完整旅程。数据均为模拟，接口带 300-500ms 延迟。</p>
+      <ul class="side-list">
+        <li>
+          <span class="side-ico"><svg class="icon" aria-hidden="true"><use href="#i-briefcase"/></svg></span>
+          <div><b>职位大厅</b><p>搜索、分类、时段与排序自由组合筛选，点开职位卡查看详情并报名。</p></div>
+        </li>
+        <li>
+          <span class="side-ico"><svg class="icon" aria-hidden="true"><use href="#i-zap"/></svg></span>
+          <div><b>智能匹配</b><p>按空闲时段、技能与信用分排序，环形匹配度与匹配理由透明可见。</p></div>
+        </li>
+        <li>
+          <span class="side-ico"><svg class="icon" aria-hidden="true"><use href="#i-calendar"/></svg></span>
+          <div><b>日程</b><p>本周末两天排班一览，自动按工时 × 时薪汇总预计收入。</p></div>
+        </li>
+        <li>
+          <span class="side-ico"><svg class="icon" aria-hidden="true"><use href="#i-user"/></svg></span>
+          <div><b>我的</b><p>信用档案、技能标签、报名记录与钱包结算明细。</p></div>
+        </li>
+      </ul>
+      <hr class="divider">
+      <ul class="side-tips">
+        <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>试试在大厅搜索「奶茶」，或切换排序与时段筛选</li>
+        <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>打开职位详情，勾选时段后点击「立即报名」</li>
+        <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>在「智能匹配」或「我的」里编辑周末空闲时段</li>
+        <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>报名后切到「日程」「我的」查看状态变化</li>
+      </ul>
+      <div class="side-links">
+        <a class="btn btn-primary btn-block" href="merchant.html">切换到商家端 →</a>
+        <a class="btn btn-outline btn-block" href="index.html">回到首页 →</a>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- 空闲时段编辑弹窗（挂载 body） -->
+<div class="mask" id="ftMask">
+  <div class="modal-card" style="max-width:420px">
+    <div class="modal-head">
+      <h3>编辑周末空闲时段</h3>
+      <button class="modal-x" id="ftClose" aria-label="关闭"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="ft-row" data-day="sat">
+        <span class="ft-day">周六</span>
+        <button class="sw on" data-role="sw" aria-label="周六开关"></button>
+        <div class="ft-times">
+          <select class="select" data-role="start"></select>
+          <span>至</span>
+          <select class="select" data-role="end"></select>
+        </div>
+      </div>
+      <div class="ft-row" data-day="sun">
+        <span class="ft-day">周日</span>
+        <button class="sw on" data-role="sw" aria-label="周日开关"></button>
+        <div class="ft-times">
+          <select class="select" data-role="start"></select>
+          <span>至</span>
+          <select class="select" data-role="end"></select>
+        </div>
+      </div>
+      <p class="ft-tip">关闭开关表示当天休息，不参与职位匹配；保存后智能匹配将按新时段重新计算。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" id="ftCancel">取消</button>
+      <button class="btn btn-primary" id="ftSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="ui.js"></script>
+<script src="mock.js"></script>
+<script src="api.js"></script>
+<script src="student.js"></script>
+</body>
+</html>

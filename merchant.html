@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>兼职蜂 · 商家端</title>
+<meta name="description" content="兼职蜂商家端：周末短工职位发布、候选人筛选与排班管理。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 80'%3E%3Cpath d='M36 4 66 22 66 58 36 76 6 58 6 22Z' fill='%23F27B13'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="merchant.css">
+</head>
+<body>
+
+<!-- 左侧固定侧边栏 -->
+<aside class="side">
+  <a class="side-logo" href="index.html">
+    <svg class="logo-mark" viewBox="0 0 72 80" aria-hidden="true"><path d="M36 4 66 22 66 58 36 76 6 58 6 22Z" fill="#F27B13"/><path d="M36 14 57 27 57 53 36 66 15 53 15 27Z" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/></svg>
+    <span class="side-logo-t"><b>兼职蜂</b><span>商家端</span></span>
+  </a>
+  <nav class="side-nav">
+    <a class="on" data-page="dashboard"><svg class="icon" aria-hidden="true"><use href="#i-dashboard"/></svg>工作台</a>
+    <a data-page="jobs"><svg class="icon" aria-hidden="true"><use href="#i-briefcase"/></svg>职位管理</a>
+    <a data-page="candidates"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg>候选人</a>
+  </nav>
+  <div class="side-foot">
+    <div class="mcard" id="merchant-card"></div>
+    <a class="side-link" href="student.html"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-graduation"/></svg>切换到学生端<svg class="icon icon-sm side-link-arrow" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+    <a class="side-link" href="index.html"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-home"/></svg>回到首页<svg class="icon icon-sm side-link-arrow" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+  </div>
+</aside>
+
+<!-- 右侧主区 -->
+<main class="main">
+  <header class="top">
+    <div>
+      <h1 id="page-title">工作台</h1>
+      <p class="top-sub">2026年11月第1周</p>
+    </div>
+    <button class="btn btn-primary" id="btn-publish"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>发布职位</button>
+  </header>
+
+  <!-- 页面 1：工作台 -->
+  <section class="page fade-in" id="page-dashboard">
+    <div class="stat-grid" id="stat-grid"></div>
+    <div class="dash-grid">
+      <div class="card card-pad">
+        <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg>待办事项</div>
+        <div class="card-sub">按紧急程度排序，点击第一条直达处理</div>
+        <div id="todo-list"></div>
+      </div>
+      <div class="card card-pad">
+        <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#i-alert-triangle"/></svg>周末班次缺口</div>
+        <div class="card-sub">报名进度未满的班次，建议尽快确认候选人</div>
+        <div id="gap-list"></div>
+      </div>
+      <div class="card card-pad">
+        <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#i-star"/></svg>最新评价</div>
+        <div class="card-sub">学生对周末兼职体验的评价</div>
+        <div id="review-list"></div>
+        <button class="btn btn-outline btn-sm btn-block" id="btn-reply" style="margin-top:12px">回复评价</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页面 2：职位管理 -->
+  <section class="page" id="page-jobs" hidden>
+    <div class="chips jobs-filter" id="jobs-filter">
+      <span class="chip on" data-f="all">全部</span>
+      <span class="chip" data-f="recruiting">招募中</span>
+      <span class="chip" data-f="full">已满员</span>
+      <span class="chip" data-f="ended">已结束</span>
+    </div>
+    <div id="job-list"></div>
+  </section>
+
+  <!-- 页面 3：候选人 -->
+  <section class="page" id="page-candidates" hidden>
+    <div class="cand-top">
+      <div class="chips" id="cand-chips"></div>
+      <div class="cand-count" id="cand-count"></div>
+    </div>
+    <div class="cand-grid" id="cand-grid"></div>
+  </section>
+</main>
+
+<!-- 发布职位弹窗 -->
+<div class="mask" id="pub-mask">
+  <div class="modal-card pub-modal">
+    <div class="modal-head">
+      <h3>发布周末职位</h3>
+      <button class="modal-x" id="pub-x" aria-label="关闭"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <form id="pub-form" onsubmit="return false">
+        <div class="field">
+          <label>职位名称 <em>*</em></label>
+          <input class="input" id="f-title" placeholder="例如：周末前厅帮工" maxlength="20">
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>职位类目 <em>*</em></label>
+            <select class="select" id="f-category"></select>
+          </div>
+          <div class="field">
+            <label>时薪 <em>*</em></label>
+            <div class="input-wrap">
+              <input class="input" id="f-pay" type="number" min="1" placeholder="16">
+              <span class="input-unit">元/小时</span>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>结算方式</label>
+          <div class="chips" id="f-settle">
+            <span class="chip on" data-v="日结">日结</span>
+            <span class="chip" data-v="周结">周结</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>用工日期 <em>*</em></label>
+          <div class="chips" id="f-days"></div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>开始时间</label>
+            <select class="select" id="f-start"></select>
+          </div>
+          <div class="field">
+            <label>结束时间</label>
+            <select class="select" id="f-end"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>招聘人数 <em>*</em></label>
+            <input class="input" id="f-headcount" type="number" min="1" placeholder="2">
+          </div>
+          <div class="field">
+            <label>工作地址</label>
+            <input class="input" id="f-addr" value="临江大学南门·糖水街 3 号">
+          </div>
+        </div>
+        <div class="field">
+          <label>职位描述</label>
+          <textarea class="textarea" id="f-desc" placeholder="工作内容、岗位要求、是否提供餐食等"></textarea>
+        </div>
+        <div class="field">
+          <label>技能要求</label>
+          <div class="chips" id="f-skills"></div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" id="pub-cancel">取消</button>
+      <button class="btn btn-primary" id="pub-submit">发布职位</button>
+    </div>
+  </div>
+</div>
+
+<script src="ui.js"></script>
+<script src="mock.js"></script>
+<script src="api.js"></script>
+<script src="merchant.js"></script>
+</body>
+</html>

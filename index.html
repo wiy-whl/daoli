@@ -4,70 +4,521 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>兼职蜂 · 大学生周末兼职撮合平台</title>
+<meta name="description" content="兼职蜂：连接大学生与周边商家的周末短期用工撮合平台。时段匹配 · 距离优先 · 平台担保结算 · 零押金。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 80'%3E%3Cpath d='M36 4 66 22 66 58 36 76 6 58 6 22Z' fill='%23F27B13'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
 <style>
-  :root{
-    --brand:#F27B13; --brand-deep:#D96A0D; --ink:#201A12; --sub:#7A7060;
-    --bg:#FAF6EF; --surface:#FFFFFF; --border:#EBE1D2;
+  /* ---------- 首页专属样式 ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:100;
+    background:rgba(250,246,239,.88);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
   }
-  *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    font-family:"PingFang SC","HarmonyOS Sans SC","MiSans","Source Han Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='72' viewBox='0 0 42 72'%3E%3Cg fill='none' stroke='%23E4D6BC' stroke-opacity='.5'%3E%3Cpath d='M21 0 42 12 42 36 21 48 0 36 0 12Z'/%3E%3Cpath d='M0 36 21 48 21 72 0 84 -21 72 -21 48Z'/%3E%3Cpath d='M42 36 63 48 63 72 42 84 21 72 21 48Z'/%3E%3C/g%3E%3C/svg%3E"),
-      var(--bg);
-    color:var(--ink);
-    display:flex;flex-direction:column;
+  .topbar-in{max-width:1140px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;gap:28px}
+  .logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800}
+  .logo-mark{width:34px;height:37px;flex:none}
+  .topnav{display:flex;gap:24px;font-size:14px;color:var(--ink-2);font-weight:600}
+  .topnav a{padding:6px 2px;transition:color .15s}
+  .topnav a:hover{color:var(--brand-deep)}
+  .topbar-cta{margin-left:auto;display:flex;gap:10px}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 24px}
+
+  /* Hero */
+  .hero{padding:72px 0 56px;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+  .hero-badge{
+    display:inline-flex;align-items:center;gap:6px;background:var(--brand-soft);
+    color:var(--brand-deep);border:1px solid var(--brand-soft2);
+    border-radius:999px;padding:5px 14px;font-size:12px;font-weight:700;margin-bottom:20px;
   }
-  main{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 20px}
-  .wrap{max-width:560px;width:100%;text-align:center}
-  .mark{
-    width:72px;height:72px;margin:0 auto 24px;border-radius:20px;
-    background:linear-gradient(135deg,var(--brand),#FFB25C);
-    display:flex;align-items:center;justify-content:center;
-    box-shadow:0 16px 40px -12px rgba(242,123,19,.45);
+  .hero h1{font-size:44px;letter-spacing:.01em;line-height:1.25}
+  .hero h1 .hl{color:var(--brand);position:relative}
+  .hero-sub{margin-top:16px;font-size:16px;color:var(--ink-3);line-height:1.9;max-width:520px}
+  .hero-cta{margin-top:30px;display:flex;gap:12px;flex-wrap:wrap}
+  .hero-note{margin-top:14px;font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+  .hero-note .icon{color:var(--ok)}
+
+  .hero-visual{position:relative;display:flex;justify-content:center}
+  .mini-phone{
+    width:270px;background:var(--ink);border-radius:36px;padding:10px;
+    box-shadow:var(--shadow-2);position:relative;z-index:1;
   }
-  .mark svg{width:40px;height:40px}
-  h1{font-size:30px;font-weight:800;letter-spacing:.01em}
-  h1 .dot{color:var(--brand)}
-  .tagline{margin-top:12px;font-size:15px;color:var(--sub);line-height:1.8}
-  .status{
-    margin:32px auto 0;display:inline-flex;align-items:center;gap:8px;
-    background:var(--surface);border:1px solid var(--border);border-radius:999px;
-    padding:8px 18px;font-size:13px;color:var(--ink);font-weight:600;
-    box-shadow:0 6px 16px -6px rgba(32,26,18,.12);
+  .mini-screen{background:var(--bg);border-radius:28px;overflow:hidden;height:520px;display:flex;flex-direction:column}
+  .mini-head{padding:16px 16px 10px;display:flex;align-items:center;justify-content:space-between}
+  .mini-head b{font-size:15px}
+  .mini-card{margin:4px 14px 12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .mini-card .t{display:flex;justify-content:space-between;align-items:center}
+  .mini-card .t b{font-size:13px}
+  .mini-card .pay{color:var(--brand);font-weight:800;font-size:14px}
+  .mini-meta{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+  .mini-chip{font-size:10px;padding:2px 8px;border-radius:999px;background:var(--brand-soft);color:var(--ink-2);font-weight:600}
+  .mini-chip.g{background:var(--ok-soft);color:var(--ok)}
+  .mini-foot{margin-top:10px;display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink-3)}
+  .float-chip{
+    position:absolute;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;padding:10px 14px;font-size:12px;font-weight:700;
+    box-shadow:var(--shadow-2);display:flex;align-items:center;gap:8px;z-index:2;
+    animation:floaty 4s ease-in-out infinite;
   }
-  .pulse{width:8px;height:8px;border-radius:50%;background:#1E9E6A;animation:p 1.4s ease-in-out infinite}
-  @keyframes p{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
-  .grid{margin-top:28px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  .cell{
-    background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 10px;
+  .float-chip .icon{color:var(--brand)}
+  .fc1{top:64px;left:2%}
+  .fc2{bottom:96px;right:0;animation-delay:1.2s}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+  .hero-stats{
+    margin-top:0;padding:22px 0 30px;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
   }
-  .cell b{display:block;font-size:14px;font-weight:700}
-  .cell span{display:block;margin-top:4px;font-size:12px;color:var(--sub)}
-  footer{padding:20px;text-align:center;font-size:12px;color:var(--sub)}
-  @media (max-width:480px){h1{font-size:24px}.grid{grid-template-columns:1fr 1fr 1fr;gap:8px}}
+  .hstat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--shadow-1)}
+  .hstat b{display:block;font-size:24px;font-weight:800;color:var(--brand-deep)}
+  .hstat b small{font-size:13px;color:var(--ink-3);font-weight:600;margin-left:2px}
+  .hstat span{font-size:12px;color:var(--ink-3)}
+
+  /* 区块通用 */
+  section.block{padding:64px 0}
+  .sec-head{text-align:center;max-width:620px;margin:0 auto 44px}
+  .sec-tag{
+    display:inline-block;font-size:12px;font-weight:800;color:var(--brand-deep);
+    background:var(--brand-soft);border-radius:999px;padding:4px 14px;margin-bottom:14px;letter-spacing:.08em;
+  }
+  .sec-head h2{font-size:30px}
+  .sec-head p{margin-top:12px;color:var(--ink-3);font-size:14px;line-height:1.9}
+
+  /* 痛点 */
+  .pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .pain{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:26px 24px;box-shadow:var(--shadow-1);transition:transform .2s,box-shadow .2s;
+  }
+  .pain:hover{transform:translateY(-4px);box-shadow:var(--shadow-2)}
+  .pain-ico{width:46px;height:46px;border-radius:14px;background:var(--warn-soft);color:var(--warn);display:grid;place-items:center;margin-bottom:16px}
+  .pain h3{font-size:16px;margin-bottom:8px}
+  .pain p{font-size:13px;color:var(--ink-3);line-height:1.85}
+  .pain .data{margin-top:14px;font-size:12px;color:var(--warn);font-weight:700;background:var(--warn-soft);display:inline-block;border-radius:999px;padding:3px 12px}
+
+  /* 撮合引擎 */
+  .engine{background:var(--ink);color:#fff;border-radius:var(--r-xl);padding:56px 48px;position:relative;overflow:hidden}
+  .engine .hex-deco{position:absolute;right:-60px;top:-60px;opacity:.08}
+  .engine-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:40px}
+  .dim{
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    border-radius:var(--r-lg);padding:22px 20px;
+  }
+  .dim .pct{font-size:30px;font-weight:800;color:#FFB25C}
+  .dim h4{margin-top:4px;font-size:15px}
+  .dim p{margin-top:8px;font-size:12px;color:rgba(255,255,255,.65);line-height:1.8}
+  .dim .bar{margin-top:14px;background:rgba(255,255,255,.14)}
+  .dim .bar i{background:#FFB25C}
+  .engine .sec-tag{background:rgba(255,178,92,.15);color:#FFB25C}
+  .engine h2{color:#fff}
+  .engine .sec-head p{color:rgba(255,255,255,.6)}
+  .engine .sec-head{margin-bottom:0;text-align:left;max-width:none}
+  .formula{
+    margin-top:28px;font-size:12px;color:rgba(255,255,255,.55);
+    background:rgba(0,0,0,.25);border-radius:var(--r-md);padding:12px 18px;
+    display:inline-flex;align-items:center;gap:8px;font-family:Consolas,monospace;
+  }
+
+  /* 交易流程 */
+  .flow-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;counter-reset:step}
+  .flow{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:22px 16px;text-align:center;position:relative;box-shadow:var(--shadow-1);
+    transition:transform .2s;
+  }
+  .flow:hover{transform:translateY(-4px)}
+  .flow .step-no{
+    position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+    background:var(--brand);color:#fff;font-size:12px;font-weight:800;
+    border-radius:999px;padding:2px 12px;box-shadow:0 4px 12px -2px rgba(242,123,19,.5);
+  }
+  .flow .f-ico{width:44px;height:44px;margin:10px auto 12px;border-radius:14px;background:var(--brand-soft);color:var(--brand-deep);display:grid;place-items:center}
+  .flow h4{font-size:14px}
+  .flow p{margin-top:6px;font-size:11.5px;color:var(--ink-3);line-height:1.7}
+  .flow-grid + .flow-note{text-align:center;margin-top:26px;font-size:12px;color:var(--ink-3)}
+
+  /* 安全保障 */
+  .safe-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .safe{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:26px 22px;box-shadow:var(--shadow-1);
+  }
+  .safe .s-ico{width:46px;height:46px;border-radius:14px;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center;margin-bottom:16px}
+  .safe:nth-child(4) .s-ico{background:var(--danger-soft);color:var(--danger)}
+  .safe h3{font-size:15px;margin-bottom:8px}
+  .safe p{font-size:12.5px;color:var(--ink-3);line-height:1.85}
+  .safe-banner{
+    margin-top:20px;background:var(--brand-soft);border:1px dashed var(--brand);
+    border-radius:var(--r-md);padding:14px 20px;display:flex;align-items:center;gap:10px;
+    font-size:13px;color:var(--brand-deep);font-weight:700;
+  }
+
+  /* 产品结构 */
+  .arch{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-xl);padding:40px;box-shadow:var(--shadow-1)}
+  .arch-root{
+    margin:0 auto;width:280px;background:linear-gradient(135deg,var(--brand),#FFB25C);
+    color:#fff;border-radius:var(--r-lg);padding:16px;text-align:center;font-weight:800;font-size:16px;
+    box-shadow:var(--shadow-brand);display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .arch-line{width:2px;height:26px;background:var(--line);margin:0 auto}
+  .arch-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .arch-col{border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+  .arch-col-h{padding:12px 16px;font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px}
+  .arch-col-h .icon{color:var(--brand)}
+  .arch-col-h small{margin-left:auto;font-size:11px;color:var(--ink-3);font-weight:600}
+  .arch-col ul{padding:10px 14px 14px;display:flex;flex-wrap:wrap;gap:8px}
+  .arch-col li{font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px 12px;color:var(--ink-2);font-weight:600}
+  .arch-col.c1 .arch-col-h{background:var(--brand-soft)}
+  .arch-col.c2 .arch-col-h{background:var(--ok-soft)}
+  .arch-col.c2 .arch-col-h .icon{color:var(--ok)}
+  .arch-col.c3 .arch-col-h{background:var(--warn-soft)}
+  .arch-col.c3 .arch-col-h .icon{color:var(--warn)}
+
+  /* 体验指引 */
+  .guide{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .gcard{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:28px;display:flex;flex-direction:column;gap:8px;box-shadow:var(--shadow-1);
+    transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden;
+  }
+  .gcard:hover{transform:translateY(-4px);box-shadow:var(--shadow-2)}
+  .gcard .g-ico{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;margin-bottom:6px}
+  .gcard h3{font-size:17px}
+  .gcard p{font-size:13px;color:var(--ink-3);line-height:1.85}
+  .gcard ul{margin-top:6px;display:flex;flex-direction:column;gap:6px}
+  .gcard li{font-size:12.5px;color:var(--ink-2);display:flex;gap:8px;align-items:flex-start}
+  .gcard li .icon{width:14px;height:14px;color:var(--ok);margin-top:3px}
+  .gcard .g-cta{margin-top:16px;align-self:flex-start}
+  .gcard.stu .g-ico{background:var(--brand-soft);color:var(--brand-deep)}
+  .gcard.mer .g-ico{background:var(--ok-soft);color:var(--ok)}
+
+  /* 页脚 */
+  footer{border-top:1px solid var(--line);padding:32px 24px;text-align:center;color:var(--ink-3);font-size:12.5px;line-height:2}
+  footer b{color:var(--ink-2)}
+
+  @media (max-width:960px){
+    .topnav{display:none}
+    .hero{grid-template-columns:1fr;padding-top:44px;text-align:center}
+    .hero-sub{margin-left:auto;margin-right:auto}
+    .hero-cta{justify-content:center}
+    .hero-visual{margin-top:16px}
+    .hero-stats{grid-template-columns:repeat(2,1fr)}
+    .pain-grid,.safe-grid{grid-template-columns:1fr 1fr}
+    .engine{padding:40px 24px}
+    .engine-grid{grid-template-columns:repeat(2,1fr)}
+    .flow-grid{grid-template-columns:repeat(3,1fr);row-gap:26px}
+    .guide,.arch-cols{grid-template-columns:1fr}
+  }
+  @media (max-width:560px){
+    .hero h1{font-size:30px}
+    .pain-grid,.safe-grid,.engine-grid{grid-template-columns:1fr}
+    .flow-grid{grid-template-columns:repeat(2,1fr)}
+    .hero-stats{grid-template-columns:repeat(2,1fr)}
+    .float-chip{display:none}
+  }
 </style>
 </head>
-<body>
-<main>
-  <div class="wrap">
-    <div class="mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
-        <path d="M12 22V12"/><path d="m8.5 9.5 3.5 2.5 3.5-2.5"/>
-      </svg>
-    </div>
-    <h1>兼职蜂<span class="dot"> · </span>大学生周末兼职撮合平台</h1>
-    <p class="tagline">连接大学生与周边商家的短期用工需求<br>时段匹配 · 距离优先 · 平台担保结算 · 零押金</p>
-    <div class="status"><span class="pulse"></span>原型构建中，即将上线</div>
-    <div class="grid">
-      <div class="cell"><b>学生端</b><span>职位大厅 · 匹配 · 日程</span></div>
-      <div class="cell"><b>商家端</b><span>发单 · 筛人 · 排班</span></div>
-      <div class="cell"><b>保障体系</b><span>实名 · 担保 · 信用分</span></div>
+<body class="hex-bg">
+
+<!-- 顶部导航 -->
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="logo" href="index.html">
+      <svg class="logo-mark" viewBox="0 0 72 80" aria-hidden="true"><path d="M36 4 66 22 66 58 36 76 6 58 6 22Z" fill="#F27B13"/><path d="M36 14 57 27 57 53 36 66 15 53 15 27Z" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/></svg>
+      兼职蜂
+    </a>
+    <nav class="topnav">
+      <a href="#insight">痛点洞察</a>
+      <a href="#engine">撮合引擎</a>
+      <a href="#flow">交易流程</a>
+      <a href="#safety">安全保障</a>
+      <a href="#structure">产品结构</a>
+    </nav>
+    <div class="topbar-cta">
+      <a class="btn btn-ghost btn-sm" href="student.html">学生端</a>
+      <a class="btn btn-primary btn-sm" href="merchant.html">商家端</a>
     </div>
   </div>
+</header>
+
+<main class="wrap">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div>
+      <span class="hero-badge"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-sparkles"/></svg>AI Coding 产品原型 · v0.1</span>
+      <h1>让每一次周末兼职，<br>都被<span class="hl">看见</span>与<span class="hl">保障</span></h1>
+      <p class="hero-sub">兼职蜂连接大学生与周边商家的短期用工需求：商家一键发单，学生按「时段重叠 · 距离可达 · 技能标签 · 信用评分」智能匹配，工资平台担保结算，全程零押金。</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="student.html"><svg class="icon" aria-hidden="true"><use href="#i-graduation"/></svg>我是大学生 · 找兼职</a>
+        <a class="btn btn-outline btn-lg" href="merchant.html"><svg class="icon" aria-hidden="true"><use href="#i-store"/></svg>我是商家 · 招短工</a>
+      </div>
+      <div class="hero-note"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-shield-check"/></svg>平台严禁向学生收取押金、服装费、办卡费等任何形式费用</div>
+    </div>
+    <div class="hero-visual">
+      <div class="float-chip fc1"><svg class="icon" aria-hidden="true"><use href="#i-zap"/></svg>匹配度 94 · 时段完全重叠</div>
+      <div class="float-chip fc2"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg>担保结算 · 完工到账</div>
+      <div class="mini-phone">
+        <div class="mini-screen">
+          <div class="mini-head">
+            <b>兼职蜂</b>
+            <svg class="icon" aria-hidden="true" style="color:var(--ink-3)"><use href="#i-bell"/></svg>
+          </div>
+          <div class="mini-card">
+            <div class="t"><b>周末奶茶店店员</b><span class="pay num">¥18/时</span></div>
+            <div class="mini-meta"><span class="mini-chip g">实名商家</span><span class="mini-chip">日结</span><span class="mini-chip">0.8km</span></div>
+            <div class="mini-foot">
+              <svg class="icon icon-sm" style="color:#F2A518" aria-hidden="true"><use href="#i-star-fill"/></svg>4.8 · 已报名 4/6 · 周六/周日
+            </div>
+          </div>
+          <div class="mini-card">
+            <div class="t"><b>少儿美术课堂助教</b><span class="pay num">¥40/时</span></div>
+            <div class="mini-meta"><span class="mini-chip g">匹配 86</span><span class="mini-chip">周日 上午</span><span class="mini-chip">1.5km</span></div>
+            <div class="mini-foot">
+              <svg class="icon icon-sm" style="color:#F2A518" aria-hidden="true"><use href="#i-star-fill"/></svg>4.8 · 已报名 1/2 · 平台担保
+            </div>
+          </div>
+          <div class="mini-card">
+            <div class="t"><b>剧本杀店周末 DM 助理</b><span class="pay num">¥30/时</span></div>
+            <div class="mini-meta"><span class="mini-chip">日结</span><span class="mini-chip">2.0km</span></div>
+            <div class="mini-foot">
+              <svg class="icon icon-sm" style="color:#F2A518" aria-hidden="true"><use href="#i-star-fill"/></svg>4.9 · 已报名 1/2 · 玩本免费
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据条 -->
+  <div class="hero-stats">
+    <div class="hstat"><b class="num">3,200<small>+</small></b><span>认证大学生</span></div>
+    <div class="hstat"><b class="num">860<small>+</small></b><span>周边合作商家</span></div>
+    <div class="hstat"><b class="num">15<small>min</small></b><span>平均到岗确认</span></div>
+    <div class="hstat"><b class="num">¥0</b><span>学生押金（永久）</span></div>
+  </div>
+
+  <!-- 痛点洞察 -->
+  <section class="block" id="insight">
+    <div class="sec-head">
+      <span class="sec-tag">WHY · 为什么做</span>
+      <h2>三方都苦了很久，只是没人撮合</h2>
+      <p>我们对 32 名大学生与 9 家周边商家做了轻量访谈，高频出现的三类问题：</p>
+    </div>
+    <div class="pain-grid">
+      <div class="pain">
+        <div class="pain-ico"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-search"/></svg></div>
+        <h3>信息分散，看不见</h3>
+        <p>商家用工信息散落在门店海报、业主群、朋友圈；学生只能一家家问，「找一天兼职」的时间成本比工资本身还高。</p>
+        <span class="data">访谈中 71% 学生靠「群聊刷屏」找兼职</span>
+      </div>
+      <div class="pain">
+        <div class="pain-ico"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-clock"/></svg></div>
+        <h3>匹配低效，对不上</h3>
+        <p>时段、距离、能力三方难对齐：学生到了发现时间冲突，商家临时缺人没人顶，沟通反复、爽约率居高不下。</p>
+        <span class="data">商家平均要沟通 4 轮才能敲定 1 人</span>
+      </div>
+      <div class="pain">
+        <div class="pain-ico"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-alert-triangle"/></svg></div>
+        <h3>保障缺失，不敢做</h3>
+        <p>押金骗局、完工不结、口头承诺随时反悔；学生怕被骗，商家怕被鸽，双方都缺一个中立的规则与担保方。</p>
+        <span class="data">63% 学生曾遇到「先交钱」的可疑兼职</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 撮合引擎 -->
+  <section class="block" id="engine">
+    <div class="engine">
+      <svg class="hex-deco" width="340" height="380" viewBox="0 0 42 72" aria-hidden="true"><g fill="none" stroke="#fff" stroke-width="1"><path d="M21 0 42 12 42 36 21 48 0 36 0 12Z"/><path d="M0 36 21 48 21 72 0 84 -21 72 -21 48Z"/><path d="M42 36 63 48 63 72 42 84 21 72 21 48Z"/></g></svg>
+      <div class="sec-head">
+        <span class="sec-tag">HOW · 撮合引擎</span>
+        <h2>四维匹配模型，让合适的人看见合适的班</h2>
+        <p>每个职位与每位学生计算综合匹配度，得分越高排序越靠前，理由透明可见。</p>
+      </div>
+      <div class="engine-grid">
+        <div class="dim">
+          <div class="pct num">40%</div>
+          <h4>时段重叠</h4>
+          <p>报名时段与学生「周末空闲时段」的重合比例，是能否真实到岗的硬前提。</p>
+          <div class="bar"><i style="width:40%"></i></div>
+        </div>
+        <div class="dim">
+          <div class="pct num">25%</div>
+          <h4>距离可达</h4>
+          <p>以学校/常驻地址为圆心计算通勤距离，3km 内权重最高，通勤成本直接决定守时率。</p>
+          <div class="bar"><i style="width:25%"></i></div>
+        </div>
+        <div class="dim">
+          <div class="pct num">20%</div>
+          <h4>技能标签</h4>
+          <p>学生技能标签与职位要求的命中数，做到「会什么、干什么」，降低商家带教成本。</p>
+          <div class="bar"><i style="width:20%"></i></div>
+        </div>
+        <div class="dim">
+          <div class="pct num">15%</div>
+          <h4>信用评分</h4>
+          <p>由完成单量、守时率、双向评价累积而成；高分优先推荐，爽约将被降权。</p>
+          <div class="bar"><i style="width:15%"></i></div>
+        </div>
+      </div>
+      <div class="formula">matchScore = 0.40×时段重叠 + 0.25×距离分 + 0.20×技能命中 + 0.15×信用分</div>
+    </div>
+  </section>
+
+  <!-- 交易流程 -->
+  <section class="block" id="flow">
+    <div class="sec-head">
+      <span class="sec-tag">WHAT · 交易流程</span>
+      <h2>从发单到结算，六步闭环</h2>
+      <p>每一步都有平台规则兜底，双方权责清晰，减少一切口头扯皮。</p>
+    </div>
+    <div class="flow-grid">
+      <div class="flow">
+        <span class="step-no num">1</span>
+        <div class="f-ico"><svg class="icon" aria-hidden="true"><use href="#i-megaphone"/></svg></div>
+        <h4>商家发单</h4>
+        <p>填写时段、人数、时薪与要求，认证商家方可发布</p>
+      </div>
+      <div class="flow">
+        <span class="step-no num">2</span>
+        <div class="f-ico"><svg class="icon" aria-hidden="true"><use href="#i-zap"/></svg></div>
+        <h4>学生报名</h4>
+        <p>按匹配度浏览职位，勾选可到岗时段一键报名</p>
+      </div>
+      <div class="flow">
+        <span class="step-no num">3</span>
+        <div class="f-ico"><svg class="icon" aria-hidden="true"><use href="#i-user-check"/></svg></div>
+        <h4>确认排班</h4>
+        <p>商家 15 分钟内确认，超时未确认自动提醒</p>
+      </div>
+      <div class="flow">
+        <span class="step-no num">4</span>
+        <div class="f-ico"><svg class="icon" aria-hidden="true"><use href="#i-map-pin"/></svg></div>
+        <h4>到岗打卡</h4>
+        <p>到场定位打卡开工 / 下班，工时自动记录</p>
+      </div>
+      <div class="flow">
+        <span class="step-no num">5</span>
+        <div class="f-ico"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg></div>
+        <h4>担保结算</h4>
+        <p>工时确认后按日结/周结放款，纠纷平台介入</p>
+      </div>
+      <div class="flow">
+        <span class="step-no num">6</span>
+        <div class="f-ico"><svg class="icon" aria-hidden="true"><use href="#i-star"/></svg></div>
+        <h4>双向互评</h4>
+        <p>评价计入双方信用，守时守信者获得更多推荐</p>
+      </div>
+    </div>
+    <p class="flow-note">爽约双罚：学生无故爽约扣信用分并 7 天限流；商家确认后取消需支付慰问金。</p>
+  </section>
+
+  <!-- 安全保障 -->
+  <section class="block" id="safety">
+    <div class="sec-head">
+      <span class="sec-tag">TRUST · 安全保障</span>
+      <h2>把「怕被骗、怕被鸽」挡在门外</h2>
+      <p>兼职市场最大的成本是不信任，平台用四层机制兜底。</p>
+    </div>
+    <div class="safe-grid">
+      <div class="safe">
+        <div class="s-ico"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-shield-check"/></svg></div>
+        <h3>实名双认证</h3>
+        <p>学生证 + 身份证双重校验；商家凭营业执照与门店信息认证，杜绝黑中介。</p>
+      </div>
+      <div class="safe">
+        <div class="s-ico"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-wallet"/></svg></div>
+        <h3>平台担保结算</h3>
+        <p>工时确认后由平台托管放款，商家不跑路、学生不白干，纠纷全程留痕可申诉。</p>
+      </div>
+      <div class="safe">
+        <div class="s-ico"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-thumb-up"/></svg></div>
+        <h3>双向信用体系</h3>
+        <p>守时率、完成单、互评累积成信用分；高分加权推荐，低分限流曝光。</p>
+      </div>
+      <div class="safe">
+        <div class="s-ico"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-ban"/></svg></div>
+        <h3>零押金禁令</h3>
+        <p>平台严禁以押金、服装费、培训费名义向学生收费，违规商家永久封禁。</p>
+      </div>
+    </div>
+    <div class="safe-banner">
+      <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+      发现违规职位？一键举报，平台 2 小时内响应下架并追责。
+    </div>
+  </section>
+
+  <!-- 产品结构 -->
+  <section class="block" id="structure">
+    <div class="sec-head">
+      <span class="sec-tag">STRUCTURE · 产品结构</span>
+      <h2>两端一底座，各取所需</h2>
+    </div>
+    <div class="arch">
+      <div class="arch-root"><svg class="icon icon-lg" aria-hidden="true"><use href="#i-zap"/></svg>兼职蜂 · 周末兼职撮合平台</div>
+      <div class="arch-line"></div>
+      <div class="arch-cols">
+        <div class="arch-col c1">
+          <div class="arch-col-h"><svg class="icon" aria-hidden="true"><use href="#i-graduation"/></svg>学生端<small>移动优先</small></div>
+          <ul>
+            <li>职位大厅</li><li>智能匹配</li><li>周末日程</li><li>信用档案</li><li>钱包结算</li><li>空闲时段管理</li>
+          </ul>
+        </div>
+        <div class="arch-col c2">
+          <div class="arch-col-h"><svg class="icon" aria-hidden="true"><use href="#i-store"/></svg>商家端<small>桌面仪表盘</small></div>
+          <ul>
+            <li>经营工作台</li><li>职位管理</li><li>候选人筛选</li><li>排班缺口</li><li>发布职位</li><li>评价回复</li>
+          </ul>
+        </div>
+        <div class="arch-col c3">
+          <div class="arch-col-h"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>保障中台<small>平台规则</small></div>
+          <ul>
+            <li>实名认证</li><li>四维撮合引擎</li><li>担保结算</li><li>信用分体系</li><li>爽约规则</li><li>举报处理</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 体验指引 -->
+  <section class="block" id="guide">
+    <div class="sec-head">
+      <span class="sec-tag">TRY · 体验原型</span>
+      <h2>选一个身份，走进兼职蜂</h2>
+      <p>原型内置模拟数据与完整交互闭环，可直接点选、筛选、报名与排班。</p>
+    </div>
+    <div class="guide">
+      <div class="gcard stu">
+        <div class="g-ico"><svg class="icon icon-xl" aria-hidden="true"><use href="#i-graduation"/></svg></div>
+        <h3>学生端 · 手机原型</h3>
+        <p>以大三学生「林小满」的视角，体验从找兼职到排班结算的完整旅程。</p>
+        <ul>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>职位大厅：搜索 / 分类 / 时段筛选 / 排序，真实过滤</li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>智能匹配：四维匹配度排序 + 匹配理由透明可见</li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>选时段报名 → 状态流转 → 日程与钱包结算</li>
+        </ul>
+        <a class="btn btn-primary g-cta" href="student.html">进入学生端<svg class="icon icon-sm" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+      </div>
+      <div class="gcard mer">
+        <div class="g-ico"><svg class="icon icon-xl" aria-hidden="true"><use href="#i-store"/></svg></div>
+        <h3>商家端 · 桌面仪表盘</h3>
+        <p>以糖水铺老板「周记糖水铺」的视角，管理周末用工的全过程。</p>
+        <ul>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>工作台：经营数据、待办事项与周末班次缺口</li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>发布职位 → 表单化发单，实时进入招募列表</li>
+          <li><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>候选人按匹配度筛选，一键通过排班或婉拒</li>
+        </ul>
+        <a class="btn btn-primary g-cta" href="merchant.html">进入商家端<svg class="icon icon-sm" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+      </div>
+    </div>
+  </section>
+
 </main>
-<footer>本页面为产品原型部署占位页，完整交互原型将在同一地址持续更新</footer>
+
+<footer>
+  <b>兼职蜂</b> · 大学生周末兼职撮合平台<br>
+  AI Coding 产品原型 · 数据均为演示用模拟数据 · © 2026 兼职蜂
+</footer>
+
+<script src="ui.js"></script>
 </body>
 </html>

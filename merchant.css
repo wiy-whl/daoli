@@ -1,0 +1,131 @@
+/* ============================================================
+   兼职蜂 · 商家端专属样式（通用组件见 styles.css）
+   ============================================================ */
+
+/* ---------- 布局骨架 ---------- */
+.side{
+  position:fixed;left:0;top:0;bottom:0;width:232px;z-index:100;
+  background:var(--surface);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+}
+.side-logo{display:flex;align-items:center;gap:10px;padding:18px;border-bottom:1px solid var(--line)}
+.logo-mark{width:32px;height:36px;flex:none}
+.side-logo-t{display:flex;flex-direction:column;align-items:flex-start;line-height:1.35}
+.side-logo-t b{font-size:16px}
+.side-logo-t span{font-size:11px;font-weight:700;color:var(--brand-deep);background:var(--brand-soft);border-radius:6px;padding:1px 8px}
+.side-nav{flex:1;padding:14px 12px;display:flex;flex-direction:column;gap:4px}
+.side-nav a{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;position:relative;
+  border-radius:var(--r-md);font-size:14px;font-weight:600;color:var(--ink-2);
+  cursor:pointer;transition:all .15s ease;user-select:none;
+}
+.side-nav a:hover{background:var(--bg)}
+.side-nav a.on{background:var(--brand-soft);color:var(--brand-deep)}
+.side-nav a.on::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:99px;background:var(--brand)}
+.side-foot{border-top:1px solid var(--line);padding:12px}
+.mcard{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;margin-bottom:8px;min-height:62px}
+.mcard-t{display:flex;flex-direction:column;gap:3px;min-width:0}
+.mcard-t b{font-size:13px}
+.mcard-t .badge{align-self:flex-start;font-size:11px;padding:2px 8px}
+.side-link{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;color:var(--ink-3);transition:all .15s}
+.side-link:hover{color:var(--brand-deep);background:var(--brand-soft)}
+.side-link .side-link-arrow{margin-left:auto;color:#CFC5B2}
+
+.main{margin-left:232px;min-height:100vh;padding:0 28px 64px}
+.top{display:flex;align-items:flex-start;gap:16px;padding:26px 0 20px;border-bottom:1px solid var(--line);margin-bottom:24px}
+.top h1{font-size:22px}
+.top-sub{margin-top:2px;font-size:13px;color:var(--ink-3)}
+.top .btn{margin-left:auto}
+
+/* ---------- 工作台 ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:20px}
+.stat{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--shadow-1)}
+.stat-ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;flex:none}
+.stat:nth-child(1) .stat-ico{background:var(--brand-soft);color:var(--brand-deep)}
+.stat:nth-child(2) .stat-ico{background:var(--warn-soft);color:var(--warn)}
+.stat:nth-child(3) .stat-ico{background:var(--ok-soft);color:var(--ok)}
+.stat:nth-child(4) .stat-ico{background:var(--brand-soft);color:var(--brand-deep)}
+.stat b{display:block;font-size:24px;line-height:1.25}
+.stat span{font-size:12px;color:var(--ink-3)}
+
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
+.todo-ico{width:32px;height:32px;border-radius:10px;background:var(--brand-soft);color:var(--brand-deep);display:grid;place-items:center;flex:none}
+.todo-text{flex:1;font-size:13px;color:var(--ink-2)}
+.todo-hot{cursor:pointer}
+.todo-hot:hover .todo-text{color:var(--brand-deep)}
+.todo-arrow{color:#CFC5B2}
+
+.gap-row{padding:12px 0;border-bottom:1px solid #F3EDE1}
+.gap-row:last-child{border-bottom:none}
+.gap-top{display:flex;align-items:center;gap:10px}
+.gap-top b{font-size:14px}
+.gap-date{font-size:12px;color:var(--ink-3)}
+.gap-top .badge{margin-left:auto}
+.gap-bar{display:flex;align-items:center;gap:10px;margin-top:10px}
+.gap-bar .bar{flex:1}
+.gap-bar span{font-size:12px;color:var(--ink-3);white-space:nowrap}
+
+.review{padding:12px 0;border-bottom:1px solid #F3EDE1}
+.review:last-child{border-bottom:none}
+.review-text{margin-top:6px;font-size:13px;color:var(--ink-2);line-height:1.7}
+.review-who{margin-top:4px;font-size:12px;color:var(--ink-3)}
+
+/* ---------- 职位管理 ---------- */
+.jobs-filter{margin-bottom:16px}
+#job-list{display:flex;flex-direction:column;gap:12px}
+.job-row{display:flex;align-items:center;gap:20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);padding:18px 20px}
+.job-main{flex:1;min-width:0}
+.job-titlerow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.job-titlerow h3{font-size:15px}
+.job-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px}
+.job-meta .pay{color:var(--brand);font-weight:800;font-size:15px}
+.job-foot{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:10px}
+.job-progress{display:flex;align-items:center;gap:8px;flex:1;min-width:160px;max-width:240px}
+.job-progress .bar{flex:1}
+.job-progress span{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.job-actions{display:flex;gap:8px;flex:none}
+
+/* ---------- 候选人 ---------- */
+.cand-top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.cand-top .chips{flex:1}
+.cand-count{font-size:13px;color:var(--ink-3);white-space:nowrap}
+.cand-count b{color:var(--warn);font-size:16px}
+.cand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:16px}
+.cand{padding:20px}
+.cand-head{display:flex;align-items:center;gap:12px}
+.cand-id{flex:1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.cand-id b{font-size:15px}
+.cand-match{display:flex;flex-direction:column;align-items:center;gap:3px;flex:none}
+.cand-match span{font-size:11px;color:var(--ink-3)}
+.cand-info{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin:16px 0 12px}
+.cand-item{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--ink-3)}
+.cand-item>.icon{width:16px;height:16px;color:var(--brand);margin-top:2px}
+.cand-item b{color:var(--ink)}
+.cand-slots{grid-column:1/-1}
+.slot-rows{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.slot-rows span{font-size:13px;font-weight:600;color:var(--ink)}
+.cand-note{background:var(--brand-soft);border-left:3px solid var(--brand);border-radius:0 var(--r-sm) var(--r-sm) 0;padding:10px 14px;font-size:13px;color:var(--ink-2);line-height:1.7}
+.cand-foot{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:16px}
+.cand-grid>.empty-wrap{grid-column:1/-1}
+
+/* ---------- 发布职位弹窗 ---------- */
+.pub-modal{max-width:600px}
+#pub-form{display:flex;flex-direction:column;gap:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.input-wrap{position:relative;display:flex;align-items:center}
+.input-wrap .input{padding-right:66px}
+.input-unit{position:absolute;right:14px;font-size:13px;color:var(--ink-3);pointer-events:none}
+
+/* ---------- 简单适配（≤900px 侧边栏折叠为顶部横条） ---------- */
+@media (max-width:900px){
+  .side{position:static;width:100%;flex-direction:row;align-items:center;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--line)}
+  .side-logo{border-bottom:none;padding:12px 10px}
+  .side-nav{flex-direction:row;padding:8px;gap:2px;overflow-x:auto}
+  .side-nav a{padding:8px 12px;white-space:nowrap}
+  .side-nav a.on::before{left:12px;right:12px;top:auto;bottom:2px;width:auto;height:3px}
+  .side-foot{display:none}
+  .main{margin-left:0;padding:0 16px 48px}
+  .job-row{flex-direction:column;align-items:stretch}
+  .job-actions{justify-content:flex-end}
+  .form-row{grid-template-columns:1fr}
+}
