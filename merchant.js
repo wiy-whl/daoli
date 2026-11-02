@@ -24,6 +24,7 @@
     candListView: 'grid',
     pollTimer: null,
     drafts: [],
+    editJobId: null,
     trendStats: {}
   };
 
@@ -45,6 +46,20 @@
     var out = [];
     Object.keys(state.candMap).forEach(function (k) { out = out.concat(state.candMap[k] || []); });
     return out;
+  }
+  // 职位浏览/收藏：优先读职位自身字段，缺失时回落到学生端同商家同标题职位
+  function jobStats(j) {
+    if (j && typeof j.views === 'number') {
+      return { views: j.views, favorites: typeof j.favorites === 'number' ? j.favorites : 0 };
+    }
+    var merchant = state.overview && state.overview.profile ? state.overview.profile.name : '';
+    var src = (MOCK.jobs || []).filter(function (s) {
+      return s.merchant === merchant && s.title === j.title;
+    })[0];
+    return {
+      views: src && typeof src.views === 'number' ? src.views : 0,
+      favorites: src && typeof src.favorites === 'number' ? src.favorites : 0
+    };
   }
 
   /* ---------- 页面切换 ---------- */
@@ -75,11 +90,16 @@
   }
 
   /* ---------- 工作台 ---------- */
-  function trendLabel() {
-    // 简化：给统计卡加环比标签（随机 8-15%）
-    return Math.random() > 0.5 ?
-      '<span style="font-size:11px;color:var(--ok);margin-left:6px">↑' + (8 + Math.floor(Math.random() * 8)) + '% vs 上周</span>' :
-      '<span style="font-size:11px;color:var(--danger);margin-left:6px">↓' + (3 + Math.floor(Math.random() * 5)) + '% vs 上周</span>';
+  function trendLabel(delta, invert) {
+    var raw = String(delta == null ? '' : delta).trim();
+    if (!raw) {
+      return '<span style="font-size:11px;color:var(--ink-3);margin-left:6px">暂无对比</span>';
+    }
+    var up = raw.charAt(0) !== '-';
+    var num = raw.replace(/^[+-]/, '');
+    var color = up ? (invert ? 'var(--danger)' : 'var(--ok)') : (invert ? 'var(--ok)' : 'var(--danger)');
+    return '<span style="font-size:11px;color:' + color + ';margin-left:6px">' +
+      (up ? '↑' : '↓') + esc(num) + ' vs 上周</span>';
   }
 
   function statCard(icon, val, sub, trend) {
@@ -98,11 +118,12 @@
     var cost = Math.round(jobs.reduce(function (sum, j) {
       return sum + j.headcount * (j.days ? j.days.length : 1) * hoursOf(j.time) * j.pay;
     }, 0));
+    var wt = (state.overview && state.overview.weeklyTrend) || {};
     $('#stat-grid').innerHTML =
-      statCard('briefcase', recruiting, '本周末在招职位', trendLabel()) +
-      statCard('user-check', pending, '待确认候选人', trendLabel()) +
-      statCard('users', passed, '已排班人次', trendLabel()) +
-      statCard('wallet', UI.money(cost), '本周预计工时成本', trendLabel());
+      statCard('briefcase', recruiting, '本周末在招职位', trendLabel(wt.appliedDelta)) +
+      statCard('user-check', pending, '待确认候选人', trendLabel(wt.appliedDelta)) +
+      statCard('users', passed, '已排班人次', trendLabel(wt.appliedDelta)) +
+      statCard('wallet', UI.money(cost), '本周预计工时成本', trendLabel(wt.costDelta, true));
   }
 
   function renderDashMiniChart() {
@@ -113,7 +134,7 @@
     var linePts = trend.applied.map(function (v, i) {
       var x = (i / (trend.applied.length - 1)) * 100;
       var y = 100 - (v / maxV) * 100;
-      return x + '%,' + y + '%';
+      return x + ',' + y;
     }).join(' ');
     var labelMap = { '餐饮': 0, '家教': 1, '活动': 2, '零售': 3, '仓储': 4 };
     var maxCat = Math.max.apply(null, Object.keys(ov.hourDistribution).map(function (k) { return ov.hourDistribution[k]; }));
@@ -135,7 +156,7 @@
             trend.applied.map(function (v, i) {
               var x = (i / (trend.applied.length - 1)) * 100;
               var y = 100 - (v / maxV) * 100;
-              return '<circle cx="' + x + '%" cy="' + y + '%" r="2" fill="#F27B13"/>';
+              return '<circle cx="' + x + '" cy="' + y + '" r="2" fill="#F27B13"/>';
             }).join('') +
           '</svg>' +
           '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--ink-3);margin-top:4px">' +
@@ -250,6 +271,32 @@
     }).join('');
   }
 
+  function renderRatingBreakdown() {
+    var stats = state.overview && state.overview.profile && state.overview.profile.stats;
+    var rb = stats && stats.ratingBreakdown;
+    var list = $('#review-list');
+    if (!rb || !list) return;
+    var box = document.getElementById('review-breakdown');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'review-breakdown';
+      box.style.cssText = 'margin:2px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line)';
+      list.before(box);
+    }
+    box.innerHTML = [5, 4, 3, 2, 1].map(function (star) {
+      var p = Math.max(0, Math.min(100, +rb[star] || 0));
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+        '<span style="font-size:12px;width:36px;color:var(--ink-2);display:flex;align-items:center;gap:2px">' +
+          star + '<span style="color:#F2A518">' + UI.icon('star-fill', 'icon-sm') + '</span>' +
+        '</span>' +
+        '<div style="flex:1;background:var(--ink-4);border-radius:4px;height:8px;overflow:hidden">' +
+          '<i style="display:block;height:100%;width:' + p + '%;background:' + (star >= 4 ? 'var(--brand)' : 'var(--brand-soft)') + '"></i>' +
+        '</div>' +
+        '<span class="num" style="font-size:12px;width:34px;text-align:right">' + p + '%</span>' +
+      '</div>';
+    }).join('');
+  }
+
   function renderDashboard() {
     if (!state.overview) return;
     renderStats();
@@ -257,20 +304,23 @@
     renderDashMiniChart();
     renderTodos();
     renderGaps();
+    renderRatingBreakdown();
     renderReviews();
   }
 
   /* ---------- 职位管理 ---------- */
   function jobActions(j) {
     var view = '<button class="btn btn-ghost btn-sm" data-act="view" data-id="' + j.id + '">查看候选人</button>';
+    var edit = '<button class="btn btn-ghost btn-sm" data-act="edit" data-id="' + j.id + '">' + UI.icon('edit', 'icon-sm') + '编辑</button>';
+    var sched = '<button class="btn btn-ghost btn-sm" data-act="schedule" data-id="' + j.id + '">' + UI.icon('calendar', 'icon-sm') + '排班表</button>';
     var preview = '<button class="btn btn-ghost btn-sm" data-act="preview" data-id="' + j.id + '">' + UI.icon('eye', 'icon-sm') + '预览</button>';
     if (j.status === 'recruiting') {
-      return '<button class="btn btn-outline btn-sm" data-act="pause" data-id="' + j.id + '">' + UI.icon('pause', 'icon-sm') + '暂停</button>' + view + preview;
+      return '<button class="btn btn-outline btn-sm" data-act="pause" data-id="' + j.id + '">' + UI.icon('pause', 'icon-sm') + '暂停</button>' + view + edit + sched + preview;
     }
     if (j.status === 'paused') {
-      return '<button class="btn btn-outline btn-sm" data-act="resume" data-id="' + j.id + '">' + UI.icon('play', 'icon-sm') + '恢复</button>' + view + preview;
+      return '<button class="btn btn-outline btn-sm" data-act="resume" data-id="' + j.id + '">' + UI.icon('play', 'icon-sm') + '恢复</button>' + view + edit + sched + preview;
     }
-    return view + preview;
+    return view + edit + sched + preview;
   }
 
   function renderJobsFilters() {
@@ -333,15 +383,14 @@
       return;
     }
     box.innerHTML = list.map(function (j) {
-      var views = Math.floor(Math.random() * 200) + 50;
-      var favs = Math.floor(Math.random() * 20) + 3;
+      var stat = jobStats(j);
       return '<div class="job-row">' +
         '<div class="job-main">' +
           '<div class="job-titlerow"><h3>' + esc(j.title) + '</h3>' +
             '<span class="tag">' + esc(j.category) + '</span>' +
             UI.statusBadge(UI.JOB_STATUS, j.status) +
             '<span style="font-size:11px;color:var(--ink-3);margin-left:auto">' +
-              UI.icon('eye', 'icon-sm') + views + ' · ' + UI.icon('star', 'icon-sm') + favs +
+              UI.icon('eye', 'icon-sm') + stat.views + ' · ' + UI.icon('star', 'icon-sm') + stat.favorites +
             '</span>' +
           '</div>' +
           '<div class="job-meta">' +
@@ -459,7 +508,10 @@
       '</label>' +
       '<button class="btn btn-primary btn-sm" id="batchPassBtn" disabled>' + UI.icon('check', 'icon-sm') + '批量通过</button>' +
       '<button class="btn btn-outline btn-sm" id="batchRejectBtn" disabled>' + UI.icon('x', 'icon-sm') + '批量婉拒</button>' +
+      '<button class="btn btn-outline btn-sm" id="batchCompareBtn" disabled title="请选择 2-3 人进行对比">' + UI.icon('list', 'icon-sm') + '对比</button>' +
+      '<span id="compareHint" style="display:none;font-size:12px;color:var(--ink-3)"></span>' +
       '<div style="margin-left:auto;display:flex;gap:6px">' +
+        '<button class="btn btn-outline btn-sm" id="candExportBtn">' + UI.icon('file-text', 'icon-sm') + '导出名单</button>' +
         '<button class="btn btn-ghost btn-sm cand-view-toggle" data-view="grid">' + UI.icon('list', 'icon-sm') + '网格</button>' +
         '<button class="btn btn-ghost btn-sm cand-view-toggle" data-view="list">' + UI.icon('file-text', 'icon-sm') + '列表</button>' +
       '</div>';
@@ -484,23 +536,45 @@
       }
     });
 
-    // 批量通过 / 婉拒
+    // 批量通过 / 婉拒 / 对比 / 导出
     top.addEventListener('click', function (e) {
       var bp = e.target.closest('#batchPassBtn');
       var br = e.target.closest('#batchRejectBtn');
+      var cmp = e.target.closest('#batchCompareBtn');
+      var exp = e.target.closest('#candExportBtn');
       if (bp) batchDecide(true);
       if (br) batchDecide(false);
+      if (cmp) openCompare();
+      if (exp) exportCandidates();
     });
+  }
+
+  function checkedCandIds() {
+    var ids = [];
+    document.querySelectorAll('.cand-check:checked').forEach(function (cb) { ids.push(cb.dataset.cid); });
+    return ids;
   }
 
   function updateBatchButtons() {
     var selected = document.querySelectorAll('.cand-check:checked');
     var bp = document.getElementById('batchPassBtn');
     var br = document.getElementById('batchRejectBtn');
+    var cmp = document.getElementById('batchCompareBtn');
+    var hint = document.getElementById('compareHint');
     if (!bp) return;
-    var enabled = selected.length >= 2;
+    var n = selected.length;
+    var enabled = n >= 2;
     bp.disabled = !enabled;
     br.disabled = !enabled;
+    if (cmp) {
+      cmp.disabled = !(n >= 2 && n <= 3);
+      cmp.title = n > 3 ? '最多选择 3 人进行对比' : '请选择 2-3 人进行对比';
+    }
+    if (hint) {
+      if (n === 1) { hint.textContent = '再选 1-2 人即可对比'; hint.style.display = 'inline'; }
+      else if (n > 3) { hint.textContent = '最多对比 3 人'; hint.style.display = 'inline'; }
+      else { hint.style.display = 'none'; }
+    }
   }
 
   function batchDecide(pass) {
@@ -530,6 +604,252 @@
           renderCandidates();
           renderStats();
         });
+      }
+    });
+  }
+
+  function closeMaskEl(mask) {
+    if (!mask) return;
+    mask.classList.remove('show');
+    setTimeout(function () { if (mask.parentNode) mask.remove(); }, 220);
+  }
+
+  function numOf(v) {
+    return parseFloat(String(v == null ? '' : v).replace('%', '')) || 0;
+  }
+
+  /* ---------- 候选人并排对比 ---------- */
+  function openCompare() {
+    var jid = state.candJobId;
+    var ids = checkedCandIds();
+    if (!jid) { UI.toast('请先选择职位', 'warn'); return; }
+    if (ids.length < 2) { UI.toast('请选择 2-3 人进行对比', 'warn'); return; }
+    if (ids.length > 3) { UI.toast('最多选择 3 人进行对比', 'warn'); return; }
+    API.compareCandidates(jid, ids).then(function (rows) {
+      if (!rows || !rows.length) { UI.toast('未获取到候选人数据', 'warn'); return; }
+      renderCompareModal(jid, rows);
+    });
+  }
+
+  function renderCompareModal(jid, rows) {
+    var old = document.getElementById('ui-compare-mask');
+    if (old) old.remove();
+
+    var defs = [
+      { label: '姓名', get: function (r) { return '<b>' + esc(r.name) + '</b>'; }, metric: null },
+      { label: '信用分', get: function (r) { return r.credit; }, metric: function (r) { return numOf(r.credit); } },
+      { label: '匹配度', get: function (r) { return r.match; }, metric: function (r) { return numOf(r.match); } },
+      { label: '完成单', get: function (r) { return r.doneJobs; }, metric: function (r) { return numOf(r.doneJobs); } },
+      { label: '守时率', get: function (r) { return esc(r.punctual || '—'); }, metric: function (r) { return numOf(r.punctual); } },
+      {
+        label: '技能命中',
+        get: function (r) {
+          var s = r.skills || [];
+          return s.length ? esc(s.join('、')) + ' <span style="color:var(--ink-3)">(' + s.length + ')</span>' :
+            '<span style="color:var(--ink-3)">无</span>';
+        },
+        metric: function (r) { return (r.skills || []).length; }
+      },
+      { label: '时段重叠', get: function (r) { return esc(r.overlap || '—'); }, metric: function (r) { return numOf(r.overlap); } },
+      { label: '历史评价条数', get: function (r) { return r.historyCount; }, metric: function (r) { return numOf(r.historyCount); } }
+    ];
+    var maxes = defs.map(function (d) {
+      return d.metric ? Math.max.apply(null, rows.map(d.metric)) : null;
+    });
+
+    var labelTd = 'padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);color:var(--ink-3);white-space:nowrap;font-size:12px';
+    var cellTd = 'padding:10px 12px;text-align:center;border-bottom:1px solid var(--line)';
+
+    var head =
+      '<tr><th style="' + labelTd + ';font-weight:600">对比项</th>' +
+        rows.map(function (r) {
+          return '<th style="padding:12px;border-bottom:1px solid var(--line);text-align:center">' +
+            '<div style="font-weight:800;font-size:14px">' + esc(r.name) + '</div>' +
+            '<div style="margin-top:4px">' + UI.statusBadge(UI.CAND_STATUS, r.status) + '</div>' +
+          '</th>';
+        }).join('') +
+      '</tr>';
+
+    var body = defs.map(function (d, i) {
+      return '<tr><td style="' + labelTd + '">' + d.label + '</td>' +
+        rows.map(function (r) {
+          var best = d.metric && rows.length > 1 && d.metric(r) === maxes[i] && maxes[i] > 0;
+          return '<td style="' + cellTd + (best ? 'color:var(--brand);font-weight:800' : '') + '">' + d.get(r) + '</td>';
+        }).join('') +
+      '</tr>';
+    }).join('');
+
+    var foot =
+      '<tr><td style="' + labelTd + '">排班操作</td>' +
+        rows.map(function (r) {
+          var html;
+          if (r.status === 'pending') {
+            html = '<button class="btn btn-primary btn-sm" data-cid="' + esc(r.id) + '">选择此人排班</button>';
+          } else if (r.status === 'passed') {
+            html = '<span class="badge b-ok">' + UI.icon('check-circle') + '已排班</span>';
+          } else {
+            html = '<span class="badge b-mute">已婉拒</span>';
+          }
+          return '<td style="' + cellTd + '">' + html + '</td>';
+        }).join('') +
+      '</tr>';
+
+    var mask = document.createElement('div');
+    mask.id = 'ui-compare-mask';
+    mask.className = 'mask';
+    mask.innerHTML =
+      '<div class="modal-card" style="max-width:720px;width:100%">' +
+        '<div class="modal-head"><h3>候选人对比</h3>' +
+          '<button class="modal-x" aria-label="关闭">' + UI.icon('x') + '</button></div>' +
+        '<div class="modal-body" style="padding:4px 16px 10px;overflow-x:auto">' +
+          '<div style="font-size:12px;color:var(--ink-3);margin-bottom:8px">每列最高值已用品牌色高亮</div>' +
+          '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+            '<thead>' + head + '</thead><tbody>' + body + foot + '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div class="modal-foot"><button class="btn btn-outline" data-act="close">关闭</button></div>' +
+      '</div>';
+    document.body.appendChild(mask);
+    requestAnimationFrame(function () { mask.classList.add('show'); });
+
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask || e.target.closest('.modal-x') || e.target.closest('[data-act="close"]')) {
+        closeMaskEl(mask);
+        return;
+      }
+      var pick = e.target.closest('[data-cid]');
+      if (!pick) return;
+      var cid = pick.dataset.cid;
+      var row = rows.filter(function (r) { return r.id === cid; })[0];
+      pick.disabled = true;
+      API.decideCandidate(jid, cid, true).then(function (res) {
+        if (res && res.ok === false) {
+          pick.disabled = false;
+          UI.toast(res.reason || '排班失败', 'err');
+          return;
+        }
+        (state.candMap[jid] || []).forEach(function (c) {
+          if (c.id === cid) c.status = 'passed';
+        });
+        UI.toast('已选择 ' + (row ? row.name : '候选人') + ' 并完成排班', 'ok');
+        closeMaskEl(mask);
+        renderCandidates();
+        renderCandChips();
+        renderStats();
+      });
+    });
+  }
+
+  /* ---------- 导出候选人名单 ---------- */
+  function exportCandidates() {
+    var jid = state.candJobId;
+    if (!jid) { UI.toast('请先选择职位', 'warn'); return; }
+    var btn = document.getElementById('candExportBtn');
+    if (btn) btn.disabled = true;
+    API.exportCandidatesCsv(jid).then(function (csv) {
+      var name = (state.overview && state.overview.profile && state.overview.profile.name) || '商家';
+      var filename = '候选人名单_' + name + '_2026-11-01.csv';
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      var n = (state.candMap[jid] || []).length;
+      UI.toast('已导出 ' + n + ' 位候选人', 'ok');
+    }).then(function () {
+      if (btn) btn.disabled = false;
+    }, function () {
+      if (btn) btn.disabled = false;
+      UI.toast('导出失败，请重试', 'err');
+    });
+  }
+
+  /* ---------- 职位排班周表 ---------- */
+  function openSchedule(jobId) {
+    var job = state.jobs.filter(function (j) { return j.id === jobId; })[0];
+    API.getScheduleGrid(jobId).then(function (grid) {
+      if (!grid || !grid.days || !grid.days.length || !grid.rows || !grid.rows.length) {
+        UI.toast('该职位暂无排班时段', 'warn');
+        return;
+      }
+      renderScheduleModal(job, grid);
+    });
+  }
+
+  function renderScheduleModal(job, grid) {
+    var old = document.getElementById('ui-schedule-mask');
+    if (old) old.remove();
+
+    var days = grid.days;
+    var rows = grid.rows;
+    var need = (job && job.headcount) || 0;
+    var seen = {};
+    var passedTotal = 0;
+    rows.forEach(function (row) {
+      days.forEach(function (d) {
+        (row.cells[d] || []).forEach(function (c) {
+          if (c.status !== 'passed') return;
+          var key = d + '|' + c.name;
+          if (!seen[key]) { seen[key] = 1; passedTotal += 1; }
+        });
+      });
+    });
+    var gapTotal = Math.max(0, need - passedTotal);
+
+    var th = 'padding:10px 12px;font-size:12px;color:var(--ink-3);text-align:left;border-bottom:1px solid var(--line);white-space:nowrap';
+    var td = 'padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top';
+
+    var body = rows.map(function (row) {
+      return '<tr><td style="' + td + ';font-size:12px;color:var(--ink-3);white-space:nowrap">' + esc(row.time) + '</td>' +
+        days.map(function (d) {
+          var cell = row.cells[d] || [];
+          var passed = cell.filter(function (c) { return c.status === 'passed'; });
+          var gap = Math.max(0, need - passed.length);
+          var chips = passed.map(function (c) {
+            return '<span class="badge b-ok" style="margin:2px 4px 2px 0">' + esc(c.name) + '</span>';
+          }).join('');
+          var gapHtml = gap > 0 ?
+            '<span data-gap="1" style="display:inline-block;border:1px dashed var(--ink-4);border-radius:8px;padding:3px 9px;font-size:12px;color:var(--ink-3);cursor:pointer">待补 ' + gap + ' 人</span>' : '';
+          return '<td style="' + td + '">' + (chips || gapHtml ? chips + gapHtml : '<span style="font-size:12px;color:var(--ink-3)">已排满</span>') + '</td>';
+        }).join('') + '</tr>';
+    }).join('');
+
+    var mask = document.createElement('div');
+    mask.id = 'ui-schedule-mask';
+    mask.className = 'mask';
+    mask.innerHTML =
+      '<div class="modal-card" style="max-width:640px;width:100%">' +
+        '<div class="modal-head"><h3>排班表 · ' + esc(job ? job.title : '') + '</h3>' +
+          '<button class="modal-x" aria-label="关闭">' + UI.icon('x') + '</button></div>' +
+        '<div class="modal-body" style="padding:12px 18px 8px;overflow-x:auto">' +
+          '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:13px">' +
+            '<span>本周末共排 <b class="num" style="color:var(--brand);font-size:16px">' + passedTotal + '</b> 人</span>' +
+            '<span>缺口 <b class="num" style="color:var(--warn);font-size:16px">' + gapTotal + '</b> 人</span>' +
+            '<span style="font-size:12px;color:var(--ink-3);margin-left:auto">' + UI.icon('info', 'icon-sm') + '点击虚线缺口可快速处理</span>' +
+          '</div>' +
+          '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+            '<thead><tr><th style="' + th + '">时段</th>' +
+              days.map(function (d) { return '<th style="' + th + '">' + esc(UI.DAY[d] || d) + '</th>'; }).join('') +
+            '</tr></thead>' +
+            '<tbody>' + body + '</tbody>' +
+          '</table>' +
+        '</div>' +
+        '<div class="modal-foot"><button class="btn btn-outline" data-act="close">关闭</button></div>' +
+      '</div>';
+    document.body.appendChild(mask);
+    requestAnimationFrame(function () { mask.classList.add('show'); });
+
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask || e.target.closest('.modal-x') || e.target.closest('[data-act="close"]')) {
+        closeMaskEl(mask);
+        return;
+      }
+      if (e.target.closest('[data-gap]')) {
+        UI.toast('去候选人页确认排班', 'ok');
       }
     });
   }
@@ -840,8 +1160,75 @@
     });
   }
 
-  function openPublish() { UI.openOverlay($('#pub-mask')); updatePubPreview(); }
-  function closePublish() { UI.closeOverlay($('#pub-mask')); }
+  function setPublishMode() {
+    state.editJobId = null;
+    var head = $('#pub-mask .modal-head h3');
+    if (head) head.textContent = '发布周末职位';
+    var submit = $('#pub-submit');
+    if (submit) submit.innerHTML = '发布职位';
+    var preview = $('#pub-preview');
+    if (preview) preview.style.display = '';
+    var draft = $('#pub-save-draft');
+    if (draft) draft.style.display = '';
+  }
+
+  function openPublish() {
+    if (state.editJobId) { setPublishMode(); resetPublishForm(); }
+    UI.openOverlay($('#pub-mask'));
+    updatePubPreview();
+  }
+
+  function closePublish() {
+    var wasEdit = !!state.editJobId;
+    UI.closeOverlay($('#pub-mask'));
+    if (wasEdit) { setPublishMode(); resetPublishForm(); }
+  }
+
+  function openEditJob(jobId) {
+    var j = state.jobs.filter(function (x) { return x.id === jobId; })[0];
+    if (!j) return;
+    state.editJobId = jobId;
+
+    var head = $('#pub-mask .modal-head h3');
+    if (head) head.textContent = '编辑职位';
+    var submit = $('#pub-submit');
+    if (submit) submit.textContent = '保存修改';
+    var preview = $('#pub-preview');
+    if (preview) preview.style.display = 'none';
+    var draft = $('#pub-save-draft');
+    if (draft) draft.style.display = 'none';
+
+    $('#f-title').value = j.title || '';
+    $('#f-category').value = j.category || '';
+    $('#f-pay').value = j.pay || '';
+    $('#f-headcount').value = j.headcount || '';
+    $('#f-addr').value = j.addr || '';
+    $('#f-desc').value = j.desc || '';
+
+    var settle = j.settle || '日结';
+    if (!$('#f-settle .chip[data-v="' + settle + '"]')) settle = '日结';
+    $$('#f-settle .chip').forEach(function (c) {
+      c.classList.toggle('on', c.dataset.v === settle);
+    });
+
+    var days = j.days || [];
+    $$('#f-days .chip').forEach(function (c) {
+      c.classList.toggle('on', days.indexOf(c.dataset.v) > -1);
+    });
+    var skills = j.skills || [];
+    $$('#f-skills .chip').forEach(function (c) {
+      c.classList.toggle('on', skills.indexOf(c.dataset.v) > -1);
+    });
+
+    var parts = String(j.time || '').split('-');
+    var start = (parts[0] || '09:00').trim();
+    var end = (parts[1] || '18:00').trim();
+    $('#f-start').value = start;
+    $('#f-end').value = end;
+
+    UI.openOverlay($('#pub-mask'));
+    updatePubPreview();
+  }
 
   function resetPublishForm() {
     $('#f-title').value = '';
@@ -899,21 +1286,28 @@
       UI.toast('结束时间需晚于开始时间', 'warn');
       return;
     }
+    var editingId = state.editJobId;
     var btn = $('#pub-submit');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>发布中…';
-    API.createJob({
+    btn.innerHTML = '<span class="spinner"></span>' + (editingId ? '保存中…' : '发布中…');
+    var payload = {
       title: title, category: category, pay: pay,
       settle: selectedVals('#f-settle')[0] || '日结',
-      days: days, start: start, end: end,
+      days: days, time: start + ' - ' + end,
       headcount: headcount,
       addr: $('#f-addr').value.trim(),
       desc: $('#f-desc').value.trim(),
       skills: selectedVals('#f-skills')
-    }).then(function () {
+    };
+    var req = editingId ? API.updateJob(editingId, payload) : API.createJob(payload);
+    req.then(function (res) {
       btn.disabled = false;
-      btn.innerHTML = '发布职位';
-      UI.toast('发布成功，已进入招募列表');
+      btn.innerHTML = editingId ? '保存修改' : '发布职位';
+      if (res && res.ok === false) {
+        UI.toast(res.reason || '操作失败，请重试', 'err');
+        return;
+      }
+      UI.toast(editingId ? '职位已更新' : '发布成功，已进入招募列表');
       closePublish();
       resetPublishForm();
       return API.getMerchantJobs();
@@ -926,19 +1320,15 @@
     });
   }
 
-  /* ---------- 轮询（每 20s） ---------- */
+  /* ---------- 轮询（每 20s，仅轻量刷新，不重复 toast） ---------- */
   function startPolling() {
     if (state.pollTimer) return;
     state.pollTimer = setInterval(function () {
-      // 检测 merchantJobs.applied 变化
       API.getMerchantJobs().then(function (jobs) {
         var changed = false;
         jobs.forEach(function (nj) {
           var old = state.jobs.find(function (x) { return x.id === nj.id; });
-          if (old && nj.applied > old.applied) {
-            UI.toast('新申请！候选人已同步到候选人列表', 'ok');
-            changed = true;
-          }
+          if (old && nj.applied > old.applied) changed = true;
         });
         state.jobs = jobs;
         if (state.page === 'jobs') renderJobs();
@@ -950,24 +1340,28 @@
           });
         }
       });
-      // 检测候选人自动通过
-      Object.keys(state.candMap).forEach(function (jid) {
-        API.getCandidates(jid).then(function (list) {
-          if (!state.candMap[jid]) state.candMap[jid] = list;
-          else {
-            var oldList = state.candMap[jid];
-            var newPass = list.filter(function (c) {
-              var o = oldList.find(function (x) { return x.id === c.id; });
-              return o && o.status !== 'passed' && c.status === 'passed';
-            });
-            if (newPass.length) {
-              UI.toast('候选人自动被系统排班，工作台统计已更新', 'ok');
-            }
-            state.candMap[jid] = list;
-          }
-        });
-      });
     }, 20000);
+  }
+
+  /* ---------- 自动确认事件 ---------- */
+  function handleAutoConfirmed(e) {
+    var detail = (e && e.detail) || {};
+    UI.toast('系统自动确认了 ' + (detail.candName || '候选人') + ' 的排班', 'ok');
+    var jid = detail.jobId;
+    var p = Promise.resolve();
+    if (jid) {
+      p = p.then(function () {
+        return API.getCandidates(jid).then(function (list) { state.candMap[jid] = list; });
+      });
+    }
+    p.then(function () { return API.getMerchantJobs(); })
+      .then(function (jobs) { state.jobs = jobs; return loadAllCandidates(); })
+      .then(function () {
+        if (state.page === 'jobs') renderJobs();
+        if (state.page === 'candidates') { renderCandChips(); renderCandidates(); }
+        renderStats();
+        renderGaps();
+      });
   }
 
   /* ---------- 事件绑定 ---------- */
@@ -1057,6 +1451,8 @@
       else if (btn.dataset.act === 'resume') changeJobStatus(id, 'recruiting');
       else if (btn.dataset.act === 'view') viewCandidates(id);
       else if (btn.dataset.act === 'preview') previewJob(id);
+      else if (btn.dataset.act === 'edit') openEditJob(id);
+      else if (btn.dataset.act === 'schedule') openSchedule(id);
     });
 
     $('#cand-chips').addEventListener('click', function (e) {
@@ -1076,6 +1472,17 @@
         decide(btn.dataset.jid, btn.dataset.cid, btn.dataset.act === 'pass');
       }
     });
+
+    // 候选人勾选：联动批量按钮/对比按钮
+    $('#cand-grid').addEventListener('change', function (e) {
+      if (!e.target.classList.contains('cand-check')) return;
+      updateBatchButtons();
+      var n = document.querySelectorAll('.cand-check:checked').length;
+      if (n === 4) UI.toast('最多选择 3 人进行对比', 'warn');
+    });
+
+    // 自动确认事件（API 30s 扫描后派发）
+    window.addEventListener('autoConfirmed', handleAutoConfirmed);
 
     // Esc 关闭 mask
     document.addEventListener('keydown', function (e) {
@@ -1118,7 +1525,9 @@
       state.overview = ov;
       renderMerchantCard();
       renderTodos();
+      renderRatingBreakdown();
       renderReviews();
+      renderStats();
     });
 
     API.getMerchantJobs().then(function (jobs) {

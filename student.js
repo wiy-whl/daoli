@@ -20,13 +20,67 @@
     sheetJob: null, sheetSlots: [], needHallRefresh: false,
     messages: [], announcements: [], unread: 0,
     showAutoConfirmDot: false,
-    searchSuggestTimer: null
+    searchSuggestTimer: null,
+    msgFilter: 'all',
+    wageSeq: 0,
+    meApps: []
   };
 
   /* ---------- 小工具 ---------- */
+  var SIM_NOW = new Date(2026, 10, 1, 10, 0); // 模拟当前时间 2026-11-01 10:00
+  var APP_STATUS_LOCAL = Object.assign({}, UI.APP_STATUS, { working: ['进行中', 'b-brand'] });
+
   function toMin(t) { var p = t.split(':'); return (+p[0]) * 60 + (+p[1]); }
   function slotHours(s) { return (toMin(s.e) - toMin(s.s)) / 60; }
   function fmtHours(h) { return String(Math.round(h * 10) / 10); }
+
+  function appBadge(status) {
+    var it = APP_STATUS_LOCAL[status];
+    return it ? '<span class="badge ' + it[1] + '">' + it[0] + '</span>' : '';
+  }
+
+  function loadingHtml(txt, dark) {
+    var sp = '<span class="spinner"' + (dark ? ' style="border-color:rgba(32,26,18,.18);border-top-color:var(--brand)"' : '') + '></span>';
+    return sp + (txt || '');
+  }
+
+  function parseDeadline(str) {
+    var m = /(\d{1,2})\.(\d{1,2})\s+(\d{1,2}):(\d{2})/.exec(str || '');
+    if (!m) return null;
+    return new Date(2026, +m[1] - 1, +m[2], +m[3], +m[4]);
+  }
+  function deadlinePassed(job) {
+    var d = parseDeadline(job && job.deadline);
+    return !!(d && d < SIM_NOW);
+  }
+
+  /* 单个时段的开班时间（2026.11.1 周六 / 11.2 周日） */
+  function slotStart(s) {
+    var p = s.s.split(':');
+    return new Date(2026, 10, s.d === 'sat' ? 1 : 2, +p[0], +p[1]);
+  }
+
+  /* 开班前 1 小时停止报名 */
+  function slotExpired(s) {
+    return slotStart(s).getTime() - SIM_NOW.getTime() < 60 * 60 * 1000;
+  }
+
+  function fmtDate(d) {
+    return (d.getMonth() + 1) + '.' + d.getDate() + ' ' +
+      (d.getHours() < 10 ? '0' + d.getHours() : d.getHours()) + ':' +
+      (d.getMinutes() < 10 ? '0' + d.getMinutes() : d.getMinutes());
+  }
+
+  /* 最近一个仍可报名时段的截止时间（开班前 1 小时） */
+  function nextDeadline(job) {
+    var open = (job.slots || []).filter(function (s) { return !slotExpired(s); });
+    if (!open.length) return null;
+    var best = open[0];
+    open.forEach(function (s) { if (slotStart(s) < slotStart(best)) best = s; });
+    var d = slotStart(best);
+    d.setHours(d.getHours() - 1);
+    return fmtDate(d);
+  }
 
   function slotSummary(job) {
     var days = [];
@@ -76,6 +130,10 @@
     list = list.filter(function (k) { return k !== kw; });
     list.unshift(kw);
     list = list.slice(0, 5);
+    try { localStorage.setItem(LS_RECENT, JSON.stringify(list)); } catch (e) {}
+  }
+  function removeRecentSearch(kw) {
+    var list = getRecentSearches().filter(function (k) { return k !== kw; });
     try { localStorage.setItem(LS_RECENT, JSON.stringify(list)); } catch (e) {}
   }
 
@@ -146,8 +204,13 @@
     var list = getRecentSearches();
     if (!list.length) { box.innerHTML = ''; return; }
     box.innerHTML = '<span style="color:var(--ink-3);font-size:12px;align-self:center">' + UI.icon('clock', 'icon-sm') + '最近搜索</span>' +
-      list.map(function (kw) { return '<button class="chip recent-chip" data-kw="' + kw + '">' + kw + '</button>'; }).join('') +
-      '<button class="chip" id="clearRecentChip" style="font-size:11px;color:var(--ink-3)">清空</button>';
+      list.map(function (kw) {
+        return '<div class="recent-item" style="display:inline-flex;align-items:center;flex:none;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:1px 3px 1px 9px">' +
+          '<button class="recent-chip" data-kw="' + kw + '" style="border:none;background:none;padding:3px 2px;font-size:12px;color:var(--ink-2)">' + kw + '</button>' +
+          '<button class="recent-del" data-del="' + kw + '" aria-label="删除该记录" style="border:none;background:none;padding:2px;display:grid;place-items:center;color:var(--ink-3)">' + UI.icon('x', 'icon-sm') + '</button>' +
+        '</div>';
+      }).join('') +
+      '<button class="recent-clear" id="clearRecentChip" style="border:none;background:none;padding:2px 4px;font-size:11px;color:var(--ink-3);align-self:center">清空</button>';
   }
 
   function updateMsgBadge() {
@@ -174,7 +237,8 @@
         UI.icon(favIcon, 'icon-lg') +
       '</button>' +
       '<div class="jc-top"><div class="jc-main">' +
-        '<div class="jc-title">' + j.title + '<span class="badge b-ok">实名</span></div>' +
+        '<div class="jc-title">' + j.title + '<span class="badge b-ok">实名</span>' +
+        (j._applied ? '<span class="badge b-brand">已报名</span>' : '') + '</div>' +
         '<div class="jc-mer">' + j.merchant + '</div>' +
         '<div class="jc-rate">' + UI.stars(j.rating) + '<b class="num">' + j.rating + '</b></div>' +
       '</div><div class="jc-pay num">' + UI.money(j.pay) + '<small>/' + j.unit + '</small></div></div>' +
@@ -200,10 +264,14 @@
     var params = { kw: state.kw, cat: state.cat, day: state.day, sort: state.sort };
     if (state.favoriteOnly) params.favoriteOnly = true;
 
-    API.listJobs(params).then(function (list) {
-      // 收藏过滤后也需要带上 favorite 状态（listJobs 内部 M.favorites 已经同步到 jobs.favorite）
-      return list;
-    }).then(function (list) {
+    Promise.all([API.listJobs(params), API.getMyApplications()]).then(function (rs) {
+      var list = rs[0], apps = rs[1];
+      var mine = {};
+      apps.forEach(function (a) {
+        if (a.status !== 'rejected') mine[a.jobId] = a.status;
+      });
+      list.forEach(function (j) { j._applied = mine[j.id] || null; });
+
       var summary = '<div style="padding:8px 14px 2px;color:var(--ink-3);font-size:12px">' +
         UI.icon('search', 'icon-sm') + '已找到 <b class="num">' + list.length + '</b> 条职位' +
         (state.kw ? ' · 搜索「' + state.kw + '」' : '') +
@@ -235,16 +303,82 @@
     });
   }
 
+  /* ---------- 薪资构成 / 通勤 / 名额 ---------- */
+  function capacityOf(job, i) {
+    var c = (job.slotCapacity || [])[i];
+    if (!c) return null;
+    var need = c.need || 0, got = c.got || 0;
+    return { need: need, left: Math.max(0, need - got), full: got >= need };
+  }
+
+  function wageHtml(w, bonus) {
+    var label = '', bonusAmt = 0;
+    var bm = /\+(\d+)/.exec(bonus || '');
+    if (bm) {
+      bonusAmt = +bm[1];
+      label = bonus.replace(/\s*\+.*$/, '').replace(/\s+/g, '');
+      if (!label) label = '全勤';
+    }
+    var baseAmt = Math.round((w.base || 0) * (w.hours || 0));
+    var total = Math.round((w.total || 0) + bonusAmt);
+    var parts = '基础 ' + UI.money(w.base) + '/时 × ' + fmtHours(w.hours) + ' 小时 = ' + UI.money(baseAmt);
+    if (w.meal) parts += ' + 餐补 ' + UI.money(w.meal);
+    if (w.transport) parts += ' + 交通 ' + UI.money(w.transport);
+    if (bonusAmt) parts += ' + ' + label + ' ' + UI.money(bonusAmt);
+    return '<div style="font-size:12.5px;color:var(--ink-2);line-height:1.9">' + parts +
+        ' <span style="color:var(--brand-deep);font-weight:800">→ 预计 ' + UI.money(total) + '</span></div>' +
+      '<div style="margin-top:4px;font-size:11.5px;color:var(--ink-3)">' +
+        (bonus ? '奖金说明：' + bonus : '无额外奖金，按实际工时结算') + '</div>';
+  }
+
+  function updateWage(job) {
+    var box = $('#wageCard');
+    if (!box) return;
+    var seq = state.wageSeq + 1;
+    state.wageSeq = seq;
+    var slots = state.sheetSlots.map(function (i) {
+      var s = job.slots[i];
+      return { d: s.d, s: s.s, e: s.e };
+    });
+    if (!slots.length) {
+      API.getWageSummary(job.id, []).then(function (w) {
+        if (seq !== state.wageSeq) return;
+        var el = $('#wageCard');
+        if (!el) return;
+        el.innerHTML = '<div style="font-size:12px;color:var(--ink-3);line-height:1.8">' +
+          '按全部 ' + job.slots.length + ' 个时段合计约 <b class="num" style="color:var(--ink-2)">' +
+          UI.money(w.total) + '</b>；勾选时段后按实际时长与补贴估算</div>';
+      });
+      return;
+    }
+    API.getWageSummary(job.id, slots).then(function (w) {
+      if (seq !== state.wageSeq) return;
+      var el = $('#wageCard');
+      if (!el) return;
+      el.innerHTML = wageHtml(w, (job.wage || {}).bonus);
+    });
+  }
+
   function renderSheet(job, applied) {
     var days = [];
     job.slots.forEach(function (s) { if (days.indexOf(s.d) < 0) days.push(s.d); });
+    // 只有「全部时段都不可报名（已开班或已满）」才算整体截止
+    var openCount = job.slots.filter(function (s, i) {
+      var cap = capacityOf(job, i);
+      return !slotExpired(s) && !(cap && cap.full);
+    }).length;
+    var stopped = openCount === 0;
+    var hasExpired = job.slots.some(function (s) { return slotExpired(s); });
     var slotHtml = days.map(function (d) {
       var chips = '';
       job.slots.forEach(function (s, i) {
-        if (s.d === d) {
-          chips += '<button class="chip slot-chip" data-idx="' + i + '"' + (applied ? ' disabled' : '') + '>' +
-            s.s + ' - ' + s.e + '</button>';
-        }
+        if (s.d !== d) return;
+        var cap = capacityOf(job, i);
+        var expired = slotExpired(s);
+        var capTxt = expired ? ' · 已开班' : (cap ? (cap.full ? ' · 已满' : ' · 剩 ' + cap.left + '/' + cap.need + ' 人') : '');
+        var dis = applied || expired || (cap && cap.full);
+        chips += '<button class="chip slot-chip" data-idx="' + i + '"' + (dis ? ' disabled' : '') + '>' +
+          s.s + '-' + s.e + capTxt + '</button>';
       });
       return '<div class="slot-day">' + UI.DAY[d] + '</div><div class="chips">' + chips + '</div>';
     }).join('');
@@ -257,6 +391,7 @@
     }
 
     var tags = (job.tags || []).map(function (t) { return '<span class="tag">' + t + '</span>'; }).join('');
+    var cm = job.commute || {};
 
     $('#sheetBody').innerHTML =
       '<div class="sh-top-bar" style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">' +
@@ -272,13 +407,28 @@
         '<div class="jc-rate">' + UI.stars(job.rating) + '<b class="num">' + job.rating + '</b></div>' +
       '</div></div>' +
       '<div class="kv sh-addr">' + UI.icon('map-pin') + job.addr + ' · ' + job.distance + 'km</div>' +
+      '<div class="kv" style="margin-top:8px">' + UI.icon('clock') + (stopped
+        ? '本周末班次均已开班或报满'
+        : '最近可报时段截止 ' + nextDeadline(job)) +
+        (stopped ? ' <span class="badge b-mute">已截止</span>' : (hasExpired ? ' <span class="badge b-warn">部分时段已开班</span>' : '')) + '</div>' +
       '<div class="sh-pay"><b class="num">' + UI.money(job.pay) + '/' + job.unit + '</b>' +
         '<span class="tag">' + job.settle + '</span>' +
         '<span class="kv">' + UI.icon('users') + '招 ' + job.headcount + ' 人 · 已报 ' + job.applied + '</span></div>' +
       (tags ? '<div style="margin-top:10px">' + tags + '</div>' : '') +
+      '<div class="sh-sec"><h4>' + UI.icon('wallet') + '薪资构成</h4>' +
+        '<div id="wageCard" style="margin-top:4px"></div></div>' +
+      '<div class="sh-sec"><h4>' + UI.icon('navigation') + '通勤参考</h4>' +
+        '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:4px">' +
+          '<span class="kv">' + UI.icon('navigation', 'icon-sm') + '步行 ' + (cm.walk || '—') + ' 分钟</span>' +
+          '<span class="kv">' + UI.icon('zap', 'icon-sm') + '骑行 ' + (cm.bike || '—') + ' 分钟</span>' +
+          '<span class="kv">' + UI.icon('briefcase', 'icon-sm') + '公交 ' + (cm.bus || '—') + ' 分钟</span>' +
+        '</div></div>' +
       '<div class="sh-sec"><h4>' + UI.icon('file-text') + '职位描述</h4><p>' + job.desc + '</p></div>' +
       '<div class="sh-sec"><h4>' + UI.icon('shield-check') + '岗位要求</h4><p>' + job.req + '</p></div>' +
       '<div class="sh-sec"><h4>' + UI.icon('clock') + '选择到岗时段（可多选）</h4>' + slotHtml + '</div>' +
+      '<div style="margin-top:14px;font-size:11.5px;color:var(--ink-3);line-height:1.8">' +
+        '着装：' + (job.dressCode || '整洁便装') + '<br>联系人：' + (job.contactPerson || '店长') +
+      '</div>' +
       (job.similar && job.similar.length ?
         '<div class="sh-sec"><h4>' + UI.icon('sparkles') + '相似职位推荐</h4>' +
         '<div class="jc-skills" style="flex-wrap:wrap;gap:6px;margin-top:8px">' +
@@ -288,8 +438,10 @@
 
     $('#sheetFoot').innerHTML =
       '<div class="sh-count">已选 <b class="num" id="slotCount">0</b> 个时段</div>' +
-      '<button class="btn btn-primary" id="applyBtn" style="flex:1"' + (applied ? ' disabled' : '') + '>' +
-      (applied ? '已报名' : '立即报名') + '</button>';
+      '<button class="btn btn-primary" id="applyBtn" style="flex:1"' + (applied || stopped ? ' disabled' : '') + '>' +
+      (stopped ? '已截止' : (applied ? '已报名' : '立即报名')) + '</button>';
+
+    updateWage(job);
 
     // 收藏按钮事件
     $('#sheetFavBtn').addEventListener('click', function () {
@@ -314,7 +466,29 @@
       return { d: s.d, s: s.s, e: s.e };
     });
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>提交中';
+    btn.innerHTML = loadingHtml('检测冲突');
+    API.checkConflict(job.id, slots).then(function (res) {
+      btn.disabled = false;
+      btn.innerHTML = '立即报名';
+      if (!res.conflict) { submitApply(btn, job, slots); return; }
+      var lines = (res.items || []).map(function (it) {
+        return it.date.replace(/\s+\d+\.\d+$/, '') + ' ' + it.time + ' 与 ' + it.conflictWith + ' 冲突';
+      }).join('<br>');
+      UI.confirm({
+        title: '时段冲突',
+        sub: lines,
+        danger: true,
+        okText: '仍然报名',
+        onOk: function () { submitApply(btn, job, slots); }
+      });
+      var noBtn = document.querySelector('#ui-confirm-mask [data-act="no"]');
+      if (noBtn) noBtn.textContent = '重新选择';
+    });
+  }
+
+  function submitApply(btn, job, slots) {
+    btn.disabled = true;
+    btn.innerHTML = loadingHtml('提交中');
     API.applyJob(job.id, slots).then(function () {
       btn.innerHTML = '已报名 · 待商家确认';
       UI.toast('报名成功，等待商家确认');
@@ -322,6 +496,7 @@
       state.dirty.schedule = true;
       state.dirty.me = true;
       state.dirty.messages = true;
+      updateWage(job);
     });
   }
 
@@ -417,7 +592,7 @@
       var a = it.a, s = it.s;
       return '<div class="shift">' +
         '<div class="shift-top"><span class="shift-time num">' + s.s + ' - ' + s.e + '</span><span class="shift-badges">' +
-        UI.statusBadge(UI.APP_STATUS, a.status) + (a.status === 'done' ? '<span class="badge b-ok">已结算</span>' : '') +
+        appBadge(a.status) + (a.status === 'done' ? '<span class="badge b-ok">已结算</span>' : '') +
         '</span></div>' +
         '<div class="shift-job">' + a.job.title + '</div>' +
         '<div class="shift-meta kv">' + UI.icon('store') + a.job.merchant + ' · ' + UI.money(a.job.pay) + '/' + a.job.unit + '</div>' +
@@ -459,7 +634,7 @@
           '</div>' +
           '<div style="text-align:right">' +
             '<div class="num">' + UI.money(slotHours(s) * a.job.pay) + '</div>' +
-            UI.statusBadge(UI.APP_STATUS, a.status) +
+            appBadge(a.status) +
           '</div>' +
         '</div>' +
         (cd ? '<div style="font-size:11px;color:var(--brand);margin-top:8px">' + UI.icon('clock', 'icon-sm') + cd + '</div>' : '') +
@@ -476,7 +651,6 @@
           '<button class="chip ' + (state.scheduleView === 'list' ? 'on' : '') + '" data-view="list">列表视图</button>' +
         '</div>' +
         '<button class="btn btn-ghost btn-sm" id="addFavShiftBtn" style="margin-left:auto">' + UI.icon('plus', 'icon-sm') + '新增收藏</button>' +
-        '<span id="autoConfirmDot" style="width:10px;height:10px;border-radius:50%;background:var(--ok);margin-right:4px;flex-shrink:0"></span>' +
       '</div>';
 
     var content;
@@ -510,7 +684,9 @@
     var box = $('#scheduleBody');
     box.innerHTML = skList(2);
     API.getMyApplications().then(function (apps) {
-      var shifts = apps.filter(function (a) { return a.status === 'scheduled' || a.status === 'done'; });
+      var shifts = apps.filter(function (a) {
+        return a.status === 'scheduled' || a.status === 'working' || a.status === 'done';
+      });
       renderScheduleBody(shifts);
     });
   }
@@ -537,11 +713,18 @@
     return '<span class="badge b-mute">通知</span>';
   }
 
+  function filterMsgs(msgs) {
+    var f = state.msgFilter;
+    if (f === 'unread') return msgs.filter(function (m) { return !m.read; });
+    if (f === 'all') return msgs;
+    return msgs.filter(function (m) { return m.type === f; });
+  }
+
   function renderMessages(msgs, anns) {
     var box = $('#page-messages');
     var latestAnn = anns && anns[0];
     var annBar = latestAnn ?
-      '<div style="margin:0 14px 12px;padding:12px 14px;background:linear-gradient(135deg,#FFF4E6,#FFE8CC);border-radius:12px;font-size:13px">' +
+      '<div style="margin:0 2px 12px;padding:12px 14px;background:linear-gradient(135deg,#FFF4E6,#FFE8CC);border-radius:12px;font-size:13px">' +
         '<div style="display:flex;align-items:center;gap:8px">' +
           UI.icon('megaphone', 'icon-lg') +
           '<span style="font-weight:600;color:#F27B13">平台公告</span>' +
@@ -552,7 +735,19 @@
         '<button class="btn btn-ghost btn-sm" id="viewAllAnns" style="margin-top:8px;padding:0">查看全部公告</button>' +
       '</div>' : '';
 
-    var listHtml = msgs.map(function (m) {
+    var FILTERS = [['all', '全部'], ['unread', '未读'], ['system', '系统'], ['merchant', '商家'], ['reminder', '提醒']];
+    var toolbar =
+      '<div style="display:flex;align-items:center;gap:8px;padding:0 2px 10px">' +
+        '<div class="chips" id="msgFilterChips" style="flex:1;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none">' +
+          FILTERS.map(function (f) {
+            return '<button class="chip ' + (state.msgFilter === f[0] ? 'on' : '') + '" data-msgfilter="' + f[0] + '" style="font-size:12px;white-space:nowrap">' + f[1] + '</button>';
+          }).join('') +
+        '</div>' +
+        '<button class="btn btn-ghost btn-sm" id="readAllBtn">全部已读</button>' +
+      '</div>';
+
+    var list = filterMsgs(msgs);
+    var listHtml = list.length ? list.map(function (m) {
       var unreadDot = !m.read ? '<span style="width:8px;height:8px;background:var(--brand);border-radius:50%;flex-shrink:0"></span>' : '<span style="width:8px"></span>';
       return '<div class="card msg-card" data-msgid="' + m.id + '" style="padding:14px 16px;cursor:pointer">' +
         '<div style="display:flex;align-items:flex-start;gap:10px">' +
@@ -567,9 +762,25 @@
           '</div>' +
         '</div>' +
       '</div>';
-    }).join('');
+    }).join('') : '<div class="card empty" style="padding:26px 18px">' +
+        '<div class="empty-ico">' + UI.icon('message', 'icon-xl') + '</div>' +
+        '<h4>暂无消息</h4><p>换个筛选条件试试</p></div>';
 
-    box.innerHTML = annBar + '<div class="list" style="padding-top:0">' + listHtml + '</div>';
+    box.innerHTML = toolbar + annBar + '<div class="list" style="padding-top:0">' + listHtml + '</div>';
+  }
+
+  function markAllRead(btn) {
+    var unread = state.messages.filter(function (m) { return !m.read; });
+    if (!unread.length) { UI.toast('没有未读消息', 'warn'); return; }
+    btn.disabled = true;
+    btn.innerHTML = loadingHtml('处理中', true);
+    Promise.all(unread.map(function (m) { return API.markMessageRead(m.id); })).then(function () {
+      state.messages.forEach(function (m) { m.read = true; });
+      state.unread = 0;
+      updateMsgBadge();
+      renderMessages(state.messages, state.announcements);
+      UI.toast('全部已读', 'ok');
+    });
   }
 
   function openMsgDetail(msgId) {
@@ -594,10 +805,23 @@
         '<div class="modal-body" style="padding:18px 20px">' +
           '<div style="font-size:13px;color:var(--ink-1);line-height:1.6">' + m.content + '</div>' +
           '<div style="margin-top:14px;font-size:11px;color:var(--ink-3)">' + m.time + ' · 来自 ' + m.from + '</div>' +
+          ((m.actions && m.actions.length) ?
+            '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">' +
+              m.actions.map(function (a, i) {
+                return '<button class="btn btn-primary btn-sm" data-msgact="' + i + '">' + a.label + '</button>';
+              }).join('') +
+            '</div>' : '') +
         '</div>' +
         '</div>';
       document.body.appendChild(mask);
       mask.addEventListener('click', function (e) {
+        var actBtn = e.target.closest('[data-msgact]');
+        if (actBtn) {
+          var action = (m.actions || [])[+actBtn.getAttribute('data-msgact')];
+          mask.remove();
+          if (action && action.jobId) openJob(action.jobId);
+          return;
+        }
         if (e.target === mask || e.target.closest('.modal-x')) mask.remove();
       });
     });
@@ -610,6 +834,7 @@
     Promise.all([API.getStudent(), API.getMyApplications(), API.getFavorites()]).then(function (rs) {
       var stu = rs[0], apps = rs[1], favJobs = rs[2];
       state.student = stu;
+      state.meApps = apps;
 
       // 计算收入
       var lastIncome = 0;
@@ -628,7 +853,7 @@
         '<div class="card me-profile">' +
           '<div class="avatar lg">' + stu.avatarText + '</div>' +
           '<div class="me-id"><b>' + stu.name + '</b><p>' + stu.school + ' · ' + stu.major + ' · ' + stu.grade + '</p></div>' +
-          '<div class="me-hex">' + UI.hexBadge(stu.credit, 72, '信用分') + '<small>' + stu.creditLevel + '</small></div>' +
+          '<div class="me-hex" data-act="credit" style="cursor:pointer">' + UI.hexBadge(stu.credit, 72, '信用分') + '<small>' + stu.creditLevel + '</small></div>' +
         '</div>' +
         '<div class="card stat3">' +
           '<div><b class="num">' + stu.stats.doneJobs + '</b><span>完成单数</span></div>' +
@@ -702,8 +927,11 @@
         var slotTxt = a.slots.map(function (s) { return UI.DAY[s.d] + ' ' + s.s + '-' + s.e; }).join('、');
         return '<div class="list-row app-row' + (a.status === 'rejected' ? ' rejected' : '') + '">' +
           '<div class="app-main"><b>' + a.job.title + '</b><p>' + a.job.merchant + ' · ' + slotTxt + '</p></div>' +
-          '<div class="app-side">' + UI.statusBadge(UI.APP_STATUS, a.status) +
-            '<span class="app-date num">' + a.appliedAt + ' 报名</span></div></div>';
+          '<div class="app-side">' + appBadge(a.status) +
+            '<span class="app-date num">' + a.appliedAt + ' 报名</span>' +
+            (a.status === 'working' && a.checkInAt ? '<span class="app-date num">' + a.checkInAt.split(' ')[1] + ' 打卡</span>' : '') +
+            appAction(a) +
+          '</div></div>';
       }).join('');
       var appsCard =
         '<div class="card card-pad">' +
@@ -712,7 +940,266 @@
             (appRows || '<div class="day-empty">' + UI.icon('coffee') + '还没有报名记录</div>') +
           '</div></div>';
 
-      box.innerHTML = '<div class="list">' + profile + wallet + favCardHtml + skills + ft + appsCard + '</div>';
+      var history = (stu.doneHistory || []).slice(0, 8).map(function (h, i) {
+        return '<div class="hist-row" data-hist="' + i + '" style="padding:10px 0;border-bottom:1px solid #F3EDE1;cursor:pointer">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px">' +
+            '<span class="num" style="color:var(--ink-3);font-size:11.5px">' + h.date + '</span>' +
+            '<b>' + h.merchant + '</b>' +
+            '<span style="color:var(--ink-3)">' + h.title + '</span>' +
+            '<span class="num" style="margin-left:auto;font-weight:700">' + fmtHours(h.hours) + 'h · ' + UI.money(h.amount) + '</span>' +
+            '<span style="display:inline-flex">' + UI.stars(h.rating || 0) + '</span>' +
+          '</div>' +
+          '<div class="hist-review" hidden style="margin-top:6px;font-size:11.5px;color:var(--ink-3);line-height:1.7">' +
+            (h.review || '暂无评价内容') + '</div>' +
+        '</div>';
+      }).join('');
+      var historyCard =
+        '<div class="card card-pad">' +
+          '<div class="card-title">' + UI.icon('award') + '历史工作记录</div>' +
+          '<div class="card-sub">共 ' + (stu.doneHistory || []).length + ' 条 · 点击查看评价</div>' +
+          '<div style="margin-top:8px">' +
+            (history || '<div class="day-empty">' + UI.icon('coffee') + '暂无历史记录</div>') +
+          '</div></div>';
+
+      box.innerHTML = '<div class="list">' + profile + wallet + favCardHtml + skills + ft + appsCard + historyCard + '</div>';
+    });
+  }
+
+  function appAction(a) {
+    if (a.status === 'pending') {
+      return '<button class="btn btn-outline btn-sm" data-appact="withdraw" data-appid="' + a.id + '">撤回报名</button>';
+    }
+    if (a.status === 'scheduled') {
+      return '<button class="btn btn-primary btn-sm" data-appact="checkin" data-appid="' + a.id + '">到岗打卡</button>';
+    }
+    if (a.status === 'working') {
+      return '<button class="btn btn-primary btn-sm" data-appact="complete" data-appid="' + a.id + '">确认完工</button>';
+    }
+    if (a.status === 'done') {
+      return a.rated ? '<span class="badge b-ok">已评价</span>'
+        : '<button class="btn btn-ghost btn-sm" data-appact="rate" data-appid="' + a.id + '">评价商家</button>';
+    }
+    return '';
+  }
+
+  /* ---------- 报名状态流转 ---------- */
+  function refreshAfterAppChange() {
+    state.dirty.schedule = true;
+    state.dirty.messages = true;
+    if (state.tab === 'me') { state.dirty.me = false; loadMe(); }
+    if (state.tab === 'schedule') { state.dirty.schedule = false; loadSchedule(); }
+  }
+
+  function withdrawApp(btn, app) {
+    UI.confirm({
+      title: '撤回报名',
+      sub: '撤回后名额将立即释放，确定撤回「' + app.job.title + '」的报名吗？',
+      danger: true,
+      okText: '撤回',
+      onOk: function () {
+        btn.disabled = true;
+        btn.innerHTML = loadingHtml('撤回中', true);
+        API.withdrawApplication(app.id).then(function (res) {
+          if (!res.ok) {
+            btn.disabled = false;
+            btn.textContent = '撤回报名';
+            UI.toast(res.reason || '撤回失败', 'warn');
+            return;
+          }
+          UI.toast('已撤回，名额已释放', 'ok');
+          state.needHallRefresh = true;
+          loadHall();
+          refreshAfterAppChange();
+        });
+      }
+    });
+  }
+
+  function checkInApp(btn, app) {
+    btn.disabled = true;
+    btn.innerHTML = loadingHtml('打卡中');
+    API.checkIn(app.id).then(function (res) {
+      if (!res.ok) {
+        btn.disabled = false;
+        btn.textContent = '到岗打卡';
+        UI.toast(res.reason || '打卡失败', 'warn');
+        return;
+      }
+      UI.toast('打卡成功，开始计工时', 'ok');
+      refreshAfterAppChange();
+    });
+  }
+
+  function openCompleteModal(app) {
+    var planned = (app.slots || []).reduce(function (sum, s) { return sum + slotHours(s); }, 0);
+    planned = Math.round(planned * 10) / 10 || 1;
+    var old = document.getElementById('ui-confirm-mask');
+    if (old) old.remove();
+    var mask = document.createElement('div');
+    mask.id = 'ui-confirm-mask';
+    mask.className = 'mask';
+    mask.innerHTML =
+      '<div class="modal-card" style="max-width:360px">' +
+        '<div class="modal-head"><h3>确认完工</h3><button class="modal-x" aria-label="关闭">' + UI.icon('x') + '</button></div>' +
+        '<div class="modal-body" style="padding:18px 20px">' +
+          '<div style="font-size:12px;color:var(--ink-3)">' + app.job.title + ' · ' + app.job.merchant + '</div>' +
+          '<div class="field" style="margin-top:14px">' +
+            '<label>实际工时（小时）</label>' +
+            '<input class="input num" id="completeHours" type="number" min="0.5" step="0.5" value="' + planned + '">' +
+          '</div>' +
+          '<div style="margin-top:10px;font-size:11.5px;color:var(--ink-3)">计划工时为 ' + fmtHours(planned) + ' 小时，确认后按实际工时结算。</div>' +
+        '</div>' +
+        '<div class="modal-foot">' +
+          '<button class="btn btn-outline btn-sm" id="completeCancel">取消</button>' +
+          '<button class="btn btn-primary btn-sm" id="completeConfirm">确认完工</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(mask);
+    requestAnimationFrame(function () { mask.classList.add('show'); });
+    function close() { mask.classList.remove('show'); setTimeout(function () { mask.remove(); }, 200); }
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask || e.target.closest('.modal-x') || e.target.closest('#completeCancel')) close();
+    });
+    $('#completeConfirm').addEventListener('click', function () {
+      var btn = this;
+      var hours = +$('#completeHours').value;
+      if (!hours || hours <= 0) { UI.toast('请输入有效工时', 'warn'); return; }
+      btn.disabled = true;
+      btn.innerHTML = loadingHtml('结算中');
+      API.completeJob(app.id, hours).then(function (res) {
+        if (!res.ok) {
+          btn.disabled = false;
+          btn.textContent = '确认完工';
+          UI.toast(res.reason || '操作失败', 'warn');
+          return;
+        }
+        close();
+        UI.toast('完工确认，工资将在 1 个工作日内结算', 'ok');
+        refreshAfterAppChange();
+      });
+    });
+  }
+
+  var RATE_TAGS = ['守时', '勤快', '沟通好', '环境好', '结算准时', '带教耐心', '工作强度大', '建议改进'];
+
+  function openRateModal(app) {
+    var stars = 5, tags = [];
+    var old = document.getElementById('ui-confirm-mask');
+    if (old) old.remove();
+    var mask = document.createElement('div');
+    mask.id = 'ui-confirm-mask';
+    mask.className = 'mask';
+    mask.innerHTML =
+      '<div class="modal-card" style="max-width:380px">' +
+        '<div class="modal-head"><h3>评价本次兼职 · ' + app.job.title + '</h3><button class="modal-x" aria-label="关闭">' + UI.icon('x') + '</button></div>' +
+        '<div class="modal-body" style="padding:18px 20px">' +
+          '<div style="font-size:12px;color:var(--ink-3)">' + app.job.merchant + '</div>' +
+          '<div id="rateStars" style="display:flex;gap:2px;justify-content:center;margin-top:12px"></div>' +
+          '<div style="text-align:center;font-size:11.5px;color:var(--ink-3);margin-top:2px">点击星星评分</div>' +
+          '<div class="chips" id="rateTags" style="margin-top:16px">' +
+            RATE_TAGS.map(function (t) {
+              return '<button class="chip" data-tag="' + t + '" style="font-size:12px">' + t + '</button>';
+            }).join('') +
+          '</div>' +
+          '<textarea class="textarea" id="rateText" style="margin-top:12px" placeholder="说说这次兼职的真实感受（选填）"></textarea>' +
+        '</div>' +
+        '<div class="modal-foot">' +
+          '<button class="btn btn-outline btn-sm" id="rateCancel">取消</button>' +
+          '<button class="btn btn-primary btn-sm" id="rateSubmit">提交评价</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(mask);
+    requestAnimationFrame(function () { mask.classList.add('show'); });
+
+    function starHtml(n) {
+      var out = '';
+      for (var i = 1; i <= 5; i++) {
+        out += '<button type="button" class="rate-star" data-star="' + i + '" style="background:none;border:none;padding:2px;line-height:0;color:' +
+          (i <= n ? '#F2A518' : '#D9CDBA') + '">' + UI.icon(i <= n ? 'star-fill' : 'star', 'icon-lg') + '</button>';
+      }
+      return out;
+    }
+    function close() { mask.classList.remove('show'); setTimeout(function () { mask.remove(); }, 200); }
+
+    $('#rateStars').innerHTML = starHtml(stars);
+    $('#rateStars').addEventListener('click', function (e) {
+      var b = e.target.closest('.rate-star');
+      if (!b) return;
+      stars = +b.getAttribute('data-star');
+      $('#rateStars').innerHTML = starHtml(stars);
+    });
+    $('#rateTags').addEventListener('click', function (e) {
+      var chip = e.target.closest('.chip');
+      if (!chip) return;
+      var t = chip.getAttribute('data-tag');
+      var i = tags.indexOf(t);
+      if (i > -1) tags.splice(i, 1); else tags.push(t);
+      chip.classList.toggle('on', i === -1);
+    });
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask || e.target.closest('.modal-x') || e.target.closest('#rateCancel')) close();
+    });
+    $('#rateSubmit').addEventListener('click', function () {
+      var btn = this;
+      btn.disabled = true;
+      btn.innerHTML = loadingHtml('提交中');
+      API.rateCounterpart(app.id, { stars: stars, tags: tags, text: ($('#rateText').value || '').trim() }).then(function (res) {
+        if (!res.ok) {
+          btn.disabled = false;
+          btn.textContent = '提交评价';
+          UI.toast(res.reason || '提交失败', 'warn');
+          return;
+        }
+        close();
+        UI.toast('评价已提交，感谢你的反馈', 'ok');
+        refreshAfterAppChange();
+      });
+    });
+  }
+
+  /* ---------- 信用分构成 ---------- */
+  function openCreditModal() {
+    var stu = state.student;
+    if (!stu) { UI.toast('请先加载个人信息', 'warn'); return; }
+    var d = stu.creditDetail || { base: 0, doneBonus: 0, punctualBonus: 0, reviewBonus: 0, penalty: 0 };
+    var total = (d.base || 0) + (d.doneBonus || 0) + (d.punctualBonus || 0) + (d.reviewBonus || 0) - (d.penalty || 0);
+    var rows = [
+      ['基础信用', d.base, ''],
+      ['完成单加成', d.doneBonus, '+'],
+      ['守时加成', d.punctualBonus, '+'],
+      ['好评加成', d.reviewBonus, '+'],
+      ['违约扣分', d.penalty, '-']
+    ];
+    var old = document.getElementById('ui-confirm-mask');
+    if (old) old.remove();
+    var mask = document.createElement('div');
+    mask.id = 'ui-confirm-mask';
+    mask.className = 'mask';
+    mask.innerHTML =
+      '<div class="modal-card" style="max-width:360px">' +
+        '<div class="modal-head"><h3>信用分构成</h3><button class="modal-x" aria-label="关闭">' + UI.icon('x') + '</button></div>' +
+        '<div class="modal-body" style="padding:18px 20px">' +
+          rows.map(function (r) {
+            var sign = r[2] === '+' ? '+' : (r[2] === '-' ? '-' : '');
+            var color = sign === '-' ? 'var(--danger)' : (sign === '+' ? 'var(--ok)' : 'var(--ink-2)');
+            return '<div class="list-row" style="padding:9px 0"><div class="app-main"><b style="font-size:13px">' + r[0] + '</b></div>' +
+              '<div class="app-side"><b class="num" style="color:' + color + '">' + sign + r[1] + '</b></div></div>';
+          }).join('') +
+          '<div class="income-total" style="margin-top:10px"><span>合计</span><b class="num">' + total + '</b></div>' +
+          '<div style="margin-top:16px;font-size:12px;color:var(--ink-3);font-weight:700">我的徽章</div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+            ((stu.badges || []).map(function (b) {
+              return '<span class="badge b-brand" style="padding:6px 10px">' + UI.icon('award', 'icon-sm') + b.name + '</span>';
+            }).join('') || '<span style="font-size:12px;color:var(--ink-3)">暂无徽章</span>') +
+          '</div>' +
+        '</div>' +
+        '<div class="modal-foot"><button class="btn btn-outline btn-sm" id="creditClose">知道了</button></div>' +
+      '</div>';
+    document.body.appendChild(mask);
+    requestAnimationFrame(function () { mask.classList.add('show'); });
+    function close() { mask.classList.remove('show'); setTimeout(function () { mask.remove(); }, 200); }
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask || e.target.closest('.modal-x') || e.target.closest('#creditClose')) close();
     });
   }
 
@@ -875,45 +1362,18 @@
     });
   }
 
-  /* ---------- 自动确认监听 ---------- */
-  function bindAutoConfirm() {
-    // 监听 api.js 内部派发的自定义事件（如果 api.js 没派发，这里兜底）
-    // api.js 的自动确认目前没 dispatch 事件，我们自己轮询 state.messages
-    // 但题目要求 api.js 不能改，所以我们自己用定时器 + 对比 messages 长度来检测
-    var lastMsgCount = (state.messages || []).length;
-    setInterval(function () {
-      if (state.tab === 'messages') return; // 消息页正在看，不用闪
-      API.getMessages().then(function (msgs) {
-        var newLen = msgs.length;
-        if (newLen > lastMsgCount) {
-          var diff = newLen - lastMsgCount;
-          lastMsgCount = newLen;
-          // 检查新消息是否自动确认相关
-          var newMsgs = msgs.slice(msgs.length - diff);
-          var hasAuto = newMsgs.some(function (m) { return m.title.indexOf('自动') > -1; });
-          if (hasAuto) {
-            state.showAutoConfirmDot = true;
-            var dot = document.getElementById('autoConfirmDot');
-            if (dot) {
-              dot.style.background = '#F27B13';
-              dot.style.animation = 'pulse 1s infinite';
-            }
-            UI.toast('系统自动帮你确认了 1 个排班', 'ok');
-            // 刷新相关 tab
-            if (state.tab === 'schedule') { loadSchedule(); }
-            if (state.tab === 'me') { loadMe(); }
-          }
-          state.messages = msgs;
-          state.unread = msgs.filter(function (m) { return !m.read; }).length;
-          updateMsgBadge();
-        } else {
-          lastMsgCount = newLen;
-          state.messages = msgs;
-          state.unread = msgs.filter(function (m) { return !m.read; }).length;
-          updateMsgBadge();
-        }
-      });
-    }, 10000);
+  /* ---------- 自动确认监听（api.js 派发 autoConfirmed 事件） ---------- */
+  function bindAutoConfirmEvent() {
+    window.addEventListener('autoConfirmed', function (e) {
+      var name = (e.detail && e.detail.candName) || '申请人';
+      UI.toast(name + ' 的排班已由商家确认', 'ok');
+      state.dirty.schedule = true;
+      state.dirty.me = true;
+      state.dirty.messages = true;
+      if (state.tab === 'schedule') { state.dirty.schedule = false; loadSchedule(); }
+      if (state.tab === 'me') { state.dirty.me = false; loadMe(); }
+      if (state.tab === 'messages') { state.dirty.messages = false; loadMessages(); }
+    });
   }
 
   /* ---------- 事件绑定 ---------- */
@@ -961,6 +1421,12 @@
     var recentBar = $('#recent-searches');
     if (recentBar) {
       recentBar.addEventListener('click', function (e) {
+        var delBtn = e.target.closest('.recent-del');
+        if (delBtn) {
+          removeRecentSearch(delBtn.getAttribute('data-del'));
+          renderRecentSearches();
+          return;
+        }
         var chip = e.target.closest('.recent-chip');
         var clearBtn = e.target.closest('#clearRecentChip');
         if (chip) {
@@ -1012,6 +1478,7 @@
         var a = act.getAttribute('data-act');
         if (a === 'ft-edit') openFreeTime();
         else if (a === 'skill-edit') UI.toast('演示版暂未开放', 'warn');
+        else if (a === 'credit') openCreditModal();
         return;
       }
       var card = e.target.closest('[data-id]');
@@ -1049,6 +1516,7 @@
         else { state.sheetSlots.push(idx); chip.classList.add('on'); }
         var c = $('#slotCount');
         if (c) c.textContent = state.sheetSlots.length;
+        updateWage(state.sheetJob);
         return;
       }
       var btn = e.target.closest('#applyBtn');
@@ -1056,17 +1524,24 @@
     });
     $('#sheetMask').addEventListener('click', closeSheet);
 
-    // 消息列表点击
+    // 消息列表点击 / 筛选 / 全部已读
     var msgPage = $('#page-messages');
     if (msgPage) {
       msgPage.addEventListener('click', function (e) {
-        var card = e.target.closest('.msg-card');
-        if (card) openMsgDetail(card.dataset.msgid);
-      });
-      msgPage.addEventListener('click', function (e) {
+        var filterChip = e.target.closest('[data-msgfilter]');
+        if (filterChip) {
+          state.msgFilter = filterChip.getAttribute('data-msgfilter');
+          renderMessages(state.messages, state.announcements);
+          return;
+        }
+        var readAll = e.target.closest('#readAllBtn');
+        if (readAll && !readAll.disabled) { markAllRead(readAll); return; }
         if (e.target.closest('#viewAllAnns')) {
           UI.toast('查看全部公告：演示版暂未开放', 'warn');
+          return;
         }
+        var card = e.target.closest('.msg-card');
+        if (card) openMsgDetail(card.dataset.msgid);
       });
     }
 
@@ -1091,8 +1566,26 @@
       // 用事件委托：因为 me tab 是动态渲染的
     }
     $('#page-me').addEventListener('click', function (e) {
-      var btn = e.target.closest('#withdrawBtn');
-      if (btn) openWithdraw();
+      var withdrawBtn = e.target.closest('#withdrawBtn');
+      if (withdrawBtn) { openWithdraw(); return; }
+
+      var appBtn = e.target.closest('[data-appact]');
+      if (appBtn) {
+        var app = (state.meApps || []).find(function (x) { return x.id === appBtn.getAttribute('data-appid'); });
+        if (!app) return;
+        var actName = appBtn.getAttribute('data-appact');
+        if (actName === 'withdraw') withdrawApp(appBtn, app);
+        else if (actName === 'checkin') checkInApp(appBtn, app);
+        else if (actName === 'complete') openCompleteModal(app);
+        else if (actName === 'rate') openRateModal(app);
+        return;
+      }
+
+      var histRow = e.target.closest('.hist-row');
+      if (histRow) {
+        var review = histRow.querySelector('.hist-review');
+        if (review) review.hidden = !review.hidden;
+      }
     });
 
     // 空闲时段弹窗
@@ -1195,7 +1688,7 @@
       updateMsgBadge();
     });
 
-    bindAutoConfirm();
+    bindAutoConfirmEvent();
 
     state.loaded.jobs = true;
     loadHall();

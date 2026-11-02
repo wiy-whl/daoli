@@ -498,8 +498,8 @@ window.MOCK = (function () {
     { id: 'a4', jobId: 'j11', slots: [{ d: 'sun', s: '09:00', e: '17:00' }], status: 'done', appliedAt: '10.20' },
     // 新增 3 条覆盖更多状态
     { id: 'a5', jobId: 'j12', slots: [{ d: 'sun', s: '09:00', e: '12:00' }], status: 'pending', appliedAt: '11.01' },
-    { id: 'a6', jobId: 'j1',  slots: [{ d: 'sat', s: '14:00', e: '21:00' }], status: 'scheduled', appliedAt: '10.29' },
-    { id: 'a7', jobId: 'j2',  slots: [{ d: 'sat', s: '11:00', e: '20:00' }], status: 'pending', appliedAt: '11.01' }
+    { id: 'a6', jobId: 'j7',  slots: [{ d: 'sat', s: '14:00', e: '20:00' }], status: 'scheduled', appliedAt: '10.29' },
+    { id: 'a7', jobId: 'j5',  slots: [{ d: 'sun', s: '06:30', e: '13:00' }], status: 'pending', appliedAt: '11.01' }
   ];
 
   /* ---------- 商家端：本店职位 ---------- */
@@ -741,6 +741,171 @@ window.MOCK = (function () {
     { id: 'an3', title: '大学生信用体系升级，好蜂员享优先推送', content: '信用分 90+ 金牌蜂员将自动匹配 3km 内高优岗位。', time: '10.25', tag: '公告' }
   ];
 
+  /* ============================================================
+     数据增强层（只追加字段，不覆盖原有字段）
+     ============================================================ */
+
+  /* ---------- 30 条职位：补贴 / 着装 / 联系人 ---------- */
+  var JOB_EXTRAS = {
+    j1:  { meal: 12, transport: 6,  bonus: '满 8 小时 +20',        dressCode: '黑色长裤 + 店内提供围裙与帽子',        contactPerson: '王店长' },
+    j2:  { meal: 15, transport: 4,  bonus: '做满全天 +15',          dressCode: '深色长裤 + 防滑鞋，店内提供围裙',      contactPerson: '周老板娘' },
+    j3:  { meal: 18, transport: 8,  bonus: '月销达标 +50',          dressCode: '白衬衫 + 黑色长裤，店内提供工牌',      contactPerson: '李主管' },
+    j4:  { meal: 0,  transport: 6,  bonus: '',                      dressCode: '休闲得体，避免短裤拖鞋',              contactPerson: '陈老师' },
+    j5:  { meal: 10, transport: 10, bonus: '全勤 +30',              dressCode: '运动服 + 跑鞋，组委会发马甲',          contactPerson: '张组长' },
+    j6:  { meal: 20, transport: 8,  bonus: '整场无缺席 +30',        dressCode: '黑色正装 + 高跟鞋，化淡妆',            contactPerson: '苏经理' },
+    j7:  { meal: 14, transport: 12, bonus: '满 6 小时 +20',         dressCode: '长袖长裤 + 防滑平底鞋，仓库发反光背心', contactPerson: '赵班长' },
+    j8:  { meal: 0,  transport: 6,  bonus: '每多 1 单扫码 +2 元',   dressCode: '品牌 T 恤 + 长裤，品牌方提供工服',      contactPerson: '刘督导' },
+    j9:  { meal: 20, transport: 6,  bonus: '带本 ≥2 场 +30',        dressCode: '休闲舒适，店内提供角色服',            contactPerson: '谜鹿店长' },
+    j10: { meal: 12, transport: 3,  bonus: '',                      dressCode: '深色上衣 + 长裤，店内提供围裙',        contactPerson: '甜野店主' },
+    j11: { meal: 0,  transport: 10, bonus: '',                      dressCode: '白衬衫 + 深色长裤，佩戴馆方胸牌',      contactPerson: '周老师' },
+    j12: { meal: 0,  transport: 5,  bonus: '',                      dressCode: '耐脏上衣 + 长裤，教室提供罩衣',        contactPerson: '林老师' },
+    j13: { meal: 15, transport: 8,  bonus: '整场全勤 +20',          dressCode: '舒适运动鞋，活动方提供全套道具服',      contactPerson: '王姐' },
+    j14: { meal: 15, transport: 4,  bonus: '满 12 小时 +25',        dressCode: '白衬衫 + 黑长裤，店内提供围裙',        contactPerson: '值班经理' },
+    j15: { meal: 14, transport: 10, bonus: '满 8 小时 +20',         dressCode: '深色上衣 + 长裤，店内提供工服与帽子',  contactPerson: '店长助理' },
+    j16: { meal: 0,  transport: 6,  bonus: '当日连带销售 +30',      dressCode: '白衬衫 + 黑裤，店内提供工牌与围裙',    contactPerson: '门店店长' },
+    j17: { meal: 18, transport: 10, bonus: '晚市满 6 小时 +20',     dressCode: '黑色长裤 + 防滑鞋，店内提供围裙',      contactPerson: '前厅领班' },
+    j18: { meal: 0,  transport: 8,  bonus: '',                      dressCode: '衬衫 + 长裤，佩戴机构工牌',            contactPerson: '教务老师' },
+    j19: { meal: 0,  transport: 5,  bonus: '连续 4 周 +100',        dressCode: '简约大方，忌浓妆与拖鞋',              contactPerson: '周女士' },
+    j20: { meal: 20, transport: 12, bonus: '全勤 +40',              dressCode: '黑色礼服 + 高跟鞋，统一提供绶带',      contactPerson: '礼宾组长' },
+    j21: { meal: 20, transport: 14, bonus: '做满 11 小时 +25',      dressCode: '运动长裤 + 运动鞋，组委会发马甲',      contactPerson: '陈调度' },
+    j22: { meal: 0,  transport: 7,  bonus: '每注册 1 人 +3 元',     dressCode: '品牌马甲 + 长裤，现场发放',            contactPerson: '地推队长' },
+    j23: { meal: 12, transport: 9,  bonus: '',                      dressCode: '深色长裤 + 防滑鞋，超市提供工服',      contactPerson: '生鲜主管' },
+    j24: { meal: 16, transport: 15, bonus: '夜班每班 +30',          dressCode: '长袖长裤 + 防滑鞋，仓库发反光背心',    contactPerson: '仓管主管' },
+    j25: { meal: 12, transport: 5,  bonus: '',                      dressCode: '白衬衫 + 黑长裤，超市提供工牌',        contactPerson: '收银主管' },
+    j26: { meal: 15, transport: 6,  bonus: '',                      dressCode: '浅色干净上衣，现场提供拍摄围裙',      contactPerson: '小雅老师' },
+    j27: { meal: 0,  transport: 6,  bonus: '整场走秀 +20',          dressCode: '自备黑色高跟鞋，礼服由机构提供',      contactPerson: '杨老师' },
+    j28: { meal: 14, transport: 12, bonus: '满 8 小时 +20',         dressCode: '白衬衫 + 黑长裤，店内提供围裙',        contactPerson: '江景店长' },
+    j29: { meal: 15, transport: 6,  bonus: '',                      dressCode: '衬衫 + 深色长裤，佩戴机构工牌',        contactPerson: '王老师' },
+    j30: { meal: 12, transport: 9,  bonus: '满 8 小时 +15',         dressCode: '深色长裤 + 平底鞋，书店提供围裙',      contactPerson: '书店店长' }
+  };
+
+  function toMinutes(t) {
+    var p = String(t || '0:0').split(':');
+    return (+p[0]) * 60 + (+p[1] || 0);
+  }
+
+  // 将 total 尽量均匀分配到 k 个时段；onlyMin 用于需求数（至少 1）
+  function distribute(total, k, onlyMin) {
+    var out = [], base = Math.floor(total / k), rem = total % k, i;
+    for (i = 0; i < k; i++) out.push(base + (i < rem ? 1 : 0));
+    if (onlyMin) for (i = 0; i < k; i++) if (out[i] < 1) out[i] = 1;
+    return out;
+  }
+
+  // 距离 → 步行 / 骑行 / 公交分钟（0.8km: 11/4/9；3.5km: 46/15/18）
+  function commuteOf(distance) {
+    return {
+      walk: Math.max(1, Math.round(12.963 * distance + 0.63)),
+      bike: Math.max(2, Math.round(4.074 * distance + 0.741)),
+      bus: Math.max(5, Math.round(3.333 * distance + 6.333))
+    };
+  }
+
+  // 报名截止：取最早班次，开始前 2 小时；早班则提前到前一天 18:00
+  function deadlineOf(slots) {
+    var best = null;
+    slots.forEach(function (s) {
+      var mins = (s.d === 'sat' ? 0 : 1440) + toMinutes(s.s);
+      if (!best || mins < best.mins) best = { mins: mins, d: s.d, s: s.s };
+    });
+    if (!best) return '';
+    var dayName = best.d === 'sat' ? '11.1' : '11.2';
+    var startHour = Math.floor(toMinutes(best.s) / 60);
+    if (startHour >= 12) {
+      var hh = startHour - 2;
+      return dayName + ' ' + (hh < 10 ? '0' + hh : hh) + ':00';
+    }
+    return best.d === 'sat' ? '10.31 18:00' : '11.1 18:00';
+  }
+
+  jobs.forEach(function (j) {
+    var ex = JOB_EXTRAS[j.id] || { meal: 0, transport: 0, bonus: '', dressCode: '整洁便装', contactPerson: '店长' };
+    var k = j.slots.length;
+    var need = distribute(j.headcount, k, true);
+    var got = distribute(j.applied, k, false);
+
+    j.wage = { base: j.pay, meal: ex.meal, transport: ex.transport, bonus: ex.bonus };
+    j.commute = commuteOf(j.distance);
+    j.deadline = deadlineOf(j.slots);
+    j.slotCapacity = j.slots.map(function (s, i) {
+      return { d: s.d, s: s.s, e: s.e, need: need[i], got: got[i] };
+    });
+    j.dressCode = ex.dressCode;
+    j.contactPerson = ex.contactPerson;
+  });
+
+  /* ---------- 学生：历史工作 / 信用明细 / 徽章 ---------- */
+  student.doneHistory = [
+    { date: '2026-08-15', merchant: '优衣库·城西万达店', title: '周末导购', hours: 8, amount: 169, rating: 5, review: '卖场补货很主动，顾客引导也自然。', tags: ['守时', '配合度高'] },
+    { date: '2026-08-23', merchant: '西西弗书店·城西万达店', title: '周末图书理货', hours: 8, amount: 156, rating: 5, review: '分类归位准确，闭店前主动整理。', tags: ['细心', '主动'] },
+    { date: '2026-09-06', merchant: '临江美术馆', title: '巡展引导', hours: 8, amount: 162, rating: 5, review: '普通话标准，问询应答有耐心。', tags: ['表达清晰', '耐心'] },
+    { date: '2026-09-12', merchant: '周记糖水铺', title: '前厅帮工', hours: 9, amount: 159, rating: 5, review: '收台快，忙时也能顾上客人。', tags: ['勤快', '沟通好'] },
+    { date: '2026-10-03', merchant: '学而思·临江分校', title: '数学助教', hours: 4, amount: 308, rating: 5, review: '批改仔细，课后答疑讲得清楚。', tags: ['专业', '耐心'] },
+    { date: '2026-10-12', merchant: '临江会展中心', title: '活动协助', hours: 11, amount: 190, rating: 4, review: '布展搬物资很卖力，收尾稍慢。', tags: ['体力好', '踏实'] },
+    { date: '2026-10-26', merchant: '甜野咖啡', title: '吧台学徒', hours: 6, amount: 102, rating: 5, review: '出品稳定、收台干净，下次还找他', tags: ['守时', '勤快'] },
+    { date: '2026-10-31', merchant: '永辉超市·城西万达店', title: '周末理货员', hours: 8, amount: 153, rating: 5, review: '价签核对很细心，闭店前主动帮同事补货。', tags: ['细心', '踏实'] }
+  ];
+
+  student.creditDetail = { base: 70, doneBonus: 12, punctualBonus: 8, reviewBonus: 4, penalty: 2 };
+
+  student.badges = [
+    { id: 'b1', name: '首单达人', got: '2026-09-12' },
+    { id: 'b2', name: '连续守时 10 单', got: '2026-10-20' },
+    { id: 'b3', name: '好评收割机', got: '2026-10-28' }
+  ];
+
+  /* ---------- 商家：经营统计 ---------- */
+  merchantProfile.stats = {
+    monthlyOrders: 386,
+    repeatRate: '42%',
+    avgRating: 4.9,
+    ratingBreakdown: { 5: 78, 4: 15, 3: 5, 2: 1, 1: 1 },
+    monthlyRevenue: '¥18,600',
+    laborCost: '¥3,240'
+  };
+
+  /* ---------- 双向评价库（20 条） ---------- */
+  var ratings = [
+    { id: 'rt1', from: 'student', targetId: 'mc-ty', name: '甜野咖啡·大学城店', stars: 5, tags: ['结算准时', '氛围好', '有员工餐'], text: '王店长人很好，第一次做吧台也手把手教，工资当天就到账。', date: '2026-10-26' },
+    { id: 'rt2', from: 'student', targetId: 'mc-zj', name: '周记糖水铺', stars: 5, tags: ['老板娘亲切', '包餐', '节奏轻松'], text: '午市忙完还给我们煮了糖水，结算很准时。', date: '2026-09-12' },
+    { id: 'rt3', from: 'student', targetId: 'mc-jg', name: '汲果奶茶·大学城店', stars: 4, tags: ['排班规范', '有员工饮品'], text: '高峰期确实忙，但排班很清楚，店长会提醒休息。', date: '2026-10-18' },
+    { id: 'rt4', from: 'student', targetId: 'mc-msg', name: '临江美术馆', stars: 5, tags: ['环境安静', '讲解耐心'], text: '馆里老师很专业，站岗有轮换，看完展还能顺便逛一圈。', date: '2026-10-12' },
+    { id: 'rt5', from: 'student', targetId: 'mc-ch', name: '彩虹岛美术教室', stars: 5, tags: ['老师耐心', '适合积累经验'], text: '小朋友很可爱，课前会讲清流程，美术生很推荐。', date: '2026-10-25' },
+    { id: 'rt6', from: 'student', targetId: 'mc-ssf', name: '西西弗书店·城西万达店', stars: 5, tags: ['环境好', '员工折扣'], text: '理货不累，休息时能看书，员工买书还有折扣。', date: '2026-10-19' },
+    { id: 'rt7', from: 'student', targetId: 'mc-ty', name: '甜野咖啡·大学城店', stars: 5, tags: ['结算准时', '带教细致'], text: '第二次来了，流程熟悉，咖啡随便学。', date: '2026-10-31' },
+    { id: 'rt8', from: 'student', targetId: 'mc-jg', name: '汲果奶茶·大学城店', stars: 4, tags: ['朋友氛围好', '交通方便'], text: '离学校近，就是周六晚高峰有点顶。', date: '2026-09-20' },
+    { id: 'rt9', from: 'student', targetId: 'mc-zj', name: '周记糖水铺', stars: 5, tags: ['包餐', '老板好说话'], text: '传菜动线简单，午饭管饱，适合第一次兼职。', date: '2026-08-30' },
+    { id: 'rt10', from: 'student', targetId: 'mc-msg', name: '临江美术馆', stars: 4, tags: ['环境好', '站立久'], text: '整体不错，周末人流大，建议穿舒服的鞋。', date: '2026-08-15' },
+    { id: 'rt11', from: 'merchant', targetId: 's2', name: '陈屿', stars: 5, tags: ['守时', '手脚麻利', '熟悉收台'], text: '前厅收台很快，客人多也不慌，下次优先排班。', date: '2026-10-27' },
+    { id: 'rt12', from: 'merchant', targetId: 's3', name: '黄依依', stars: 5, tags: ['学习快', '有礼貌'], text: '第一天就能独立引位，和客人沟通很自然。', date: '2026-10-25' },
+    { id: 'rt13', from: 'merchant', targetId: 's4', name: '罗浩', stars: 4, tags: ['踏实', '晚班稳定'], text: '晚市时段很稳，就是动作可以再快一点。', date: '2026-10-19' },
+    { id: 'rt14', from: 'merchant', targetId: 's5', name: '许诺', stars: 5, tags: ['爱学', '出品稳定'], text: '煮茶配比一学就会，周日高峰帮了大忙。', date: '2026-10-28' },
+    { id: 'rt15', from: 'merchant', targetId: 's6', name: '苏晚晴', stars: 4, tags: ['服务态度好', '细心'], text: '服务很温柔，忙时稍慢，整体满意。', date: '2026-10-20' },
+    { id: 'rt16', from: 'merchant', targetId: 's8', name: '张雯', stars: 5, tags: ['干净利索', '不挑活'], text: '洗碗收台都很主动，午市帮了大忙。', date: '2026-10-15' },
+    { id: 'rt17', from: 'merchant', targetId: 's9', name: '王佳怡', stars: 5, tags: ['守时', '形象整洁'], text: '来得早走得晚，桌面整理得很干净。', date: '2026-10-11' },
+    { id: 'rt18', from: 'merchant', targetId: 's15', name: '孙浩然', stars: 5, tags: ['团队协作', '能扛事'], text: '搬货布展都抢着干，带队很省心。', date: '2026-10-06' },
+    { id: 'rt19', from: 'merchant', targetId: 's17', name: '冯宇航', stars: 4, tags: ['体力好', '服从安排'], text: '体力完全跟得上，就是签到时踩点，提醒过一次。', date: '2026-09-26' },
+    { id: 'rt20', from: 'merchant', targetId: 's23', name: '韩梓萱', stars: 5, tags: ['沟通表达好', '耐心'], text: '和家长沟通很得体，课后反馈写得清楚。', date: '2026-09-07' }
+  ];
+
+  /* ---------- 面试可选时段 ---------- */
+  var interviewSlots = ['周六 10:00', '周六 14:00', '周日 11:00', '周日 15:00'];
+
+  /* ---------- 学生消息：类型 / 快捷操作 ---------- */
+  var MSG_META = {
+    msg1: { type: 'merchant', actions: [{ label: '查看职位', jobId: 'j10' }] },
+    msg2: { type: 'merchant', actions: [{ label: '查看职位', jobId: 'j12' }] },
+    msg3: { type: 'merchant', actions: [{ label: '查看职位', jobId: 'j1' }] },
+    msg4: { type: 'reminder', actions: [{ label: '去评价', jobId: 'j11' }] },
+    msg5: { type: 'system', actions: [] },
+    msg6: { type: 'merchant', actions: [{ label: '查看职位', jobId: 'j2' }] }
+  };
+  messages.forEach(function (m) {
+    var meta = MSG_META[m.id] || { type: 'system', actions: [] };
+    m.type = meta.type;
+    m.actions = meta.actions;
+  });
+
   return {
     CATEGORIES: CATEGORIES,
     SKILL_POOL: SKILL_POOL,
@@ -759,6 +924,8 @@ window.MOCK = (function () {
     searchSuggestions: searchSuggestions,
     favorites: favorites,
     announcements: announcements,
+    ratings: ratings,
+    interviewSlots: interviewSlots,
     TODAY: { d: 'sat', date: '11.1', weekday: '周六' }
   };
 })();

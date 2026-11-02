@@ -99,7 +99,9 @@ window.API = (function () {
       content: '系统自动确认你报名的职位已通过排班，请准时到岗。',
       time: (new Date()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
       read: false,
-      from: '兼职蜂平台'
+      from: '兼职蜂平台',
+      type: 'system',
+      actions: []
     });
 
     M.merchantMessages.push({
@@ -110,6 +112,14 @@ window.API = (function () {
       read: false,
       from: '兼职蜂平台'
     });
+
+    // 通知界面刷新：自动确认完成
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' &&
+        typeof window.CustomEvent === 'function') {
+      window.dispatchEvent(new window.CustomEvent('autoConfirmed', {
+        detail: { jobId: jid, candName: cand.name }
+      }));
+    }
   }
 
   function startAutoTimer() {
@@ -130,6 +140,55 @@ window.API = (function () {
       return { id: j.id, title: j.title, pay: j.pay, distance: j.distance, merchant: j.merchant };
     });
   }
+
+  function findApp(id) {
+    for (var i = 0; i < M.applications.length; i++) if (M.applications[i].id === id) return M.applications[i];
+    return null;
+  }
+
+  function toMin(t) {
+    var p = String(t || '0:0').split(':');
+    return (+p[0]) * 60 + (+p[1] || 0);
+  }
+
+  function fmtMin(m) {
+    if (m >= 1440) return '24:00';
+    var h = Math.floor(m / 60), mm = m % 60;
+    return (h < 10 ? '0' + h : h) + ':' + (mm < 10 ? '0' + mm : mm);
+  }
+
+  function hoursOfSlot(s) {
+    var diff = toMin(s.e) - toMin(s.s);
+    if (diff <= 0) diff += 1440;
+    return diff / 60;
+  }
+
+  function dayLabel(d) {
+    return d === 'sat' ? '周六 11.1' : '周日 11.2';
+  }
+
+  function nowStamp() {
+    var d = new Date();
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+      ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  // 商家名称 → 评价库 targetId（与 mock.ratings 保持一致）
+  var MERCHANT_TARGET = {
+    '周记糖水铺': 'mc-zj',
+    '甜野咖啡·大学城店': 'mc-ty',
+    '汲果奶茶·大学城店': 'mc-jg',
+    '彩虹岛美术教室': 'mc-ch',
+    '临江美术馆': 'mc-msg',
+    '西西弗书店·城西万达店': 'mc-ssf'
+  };
+  function merchantTargetId(job) {
+    if (!job) return 'unknown';
+    return MERCHANT_TARGET[job.merchant] || ('mc-' + job.id);
+  }
+
+  var CAND_STATUS_CN = { pending: '待确认', passed: '已通过', rejected: '已婉拒' };
 
   return {
     /* ================= 学生端 ================= */
@@ -283,7 +342,12 @@ window.API = (function () {
         reviews: M.reviews,
         // 新增概览数据
         weeklyTrend: {
+          thisWeek: [3, 5, 4, 6, 8, 12, 10],
+          lastWeek: [2, 3, 3, 5, 6, 9, 8],
           labels: ['一', '二', '三', '四', '五', '六', '日'],
+          appliedDelta: '+22%',
+          costDelta: '+8%',
+          // 兼容旧版前端读取（等同于 thisWeek）
           applied: [3, 5, 4, 6, 8, 12, 10]
         },
         hourDistribution: { '餐饮': 48, '家教': 72, '活动': 30, '零售': 40, '仓储': 36 },
@@ -359,6 +423,300 @@ window.API = (function () {
     markMerchantMessageRead: function (msgId) {
       (M.merchantMessages || []).forEach(function (m) { if (m.id === msgId) m.read = true; });
       return delay({ ok: true });
+    },
+
+    /* ================= 新增数据端点（全部 Promise 300-500ms） ================= */
+
+    /** 排班冲突检测：对比已排班/进行中的报名时段 */
+    checkConflict: function (jobId, slots) {
+      var items = [];
+      var mine = slots || [];
+      M.applications.forEach(function (a) {
+        if (a.status !== 'scheduled' && a.status !== 'working') return;
+        if (a.jobId === jobId) return;
+        var j = findJob(a.jobId) || findMerchantJob(a.jobId);
+        if (!j) return;
+        mine.forEach(function (s) {
+          (a.slots || []).forEach(function (t) {
+            if (t.d !== s.d) return;
+            var overlap = Math.min(toMin(t.e), toMin(s.e)) - Math.max(toMin(t.s), toMin(s.s));
+            if (overlap > 0) {
+              items.push({
+                date: dayLabel(s.d),
+                time: s.s + '-' + s.e,
+                conflictWith: j.merchant + ' · ' + j.title
+              });
+            }
+          });
+        });
+      });
+      return delay({ conflict: items.length > 0, items: items });
+    },
+
+    /** 撤回报名：仅 pending 可撤回，并回退职位已招人数 */
+    withdrawApplication: function (appId) {
+      var app = findApp(appId);
+      if (!app) return delay({ ok: false, reason: '报名不存在' });
+      if (app.status !== 'pending') return delay({ ok: false, reason: '仅待确认的报名可撤回' });
+
+      var idx = M.applications.indexOf(app);
+      M.applications.splice(idx, 1);
+
+      var j = findJob(app.jobId);
+      if (j) {
+        j.applied = Math.max(0, (j.applied || 0) - 1);
+        if (j.status === 'full' && j.applied < j.headcount) j.status = 'recruiting';
+        (app.slots || []).forEach(function (s) {
+          (j.slotCapacity || []).forEach(function (c) {
+            if (c.d === s.d && c.s === s.s && c.e === s.e && c.got > 0) c.got -= 1;
+          });
+        });
+      }
+      return delay({ ok: true, jobId: app.jobId });
+    },
+
+    /** 到岗签到：scheduled → working */
+    checkIn: function (appId) {
+      var app = findApp(appId);
+      if (!app) return delay({ ok: false, reason: '报名不存在' });
+      if (app.status !== 'scheduled') return delay({ ok: false, reason: '仅已排班状态可签到' });
+
+      app.status = 'working';
+      app.checkInAt = nowStamp();
+      return delay({ ok: true, applicationId: appId, status: 'working', checkInAt: app.checkInAt });
+    },
+
+    /** 完成工作：working → done，写入历史与钱包 */
+    completeJob: function (appId, realHours) {
+      var app = findApp(appId);
+      if (!app) return delay({ ok: false, reason: '报名不存在' });
+      if (app.status !== 'working') return delay({ ok: false, reason: '仅进行中的工作可完成' });
+
+      var job = findJob(app.jobId) || findMerchantJob(app.jobId);
+      if (!job) return delay({ ok: false, reason: '职位不存在' });
+
+      var hours = +realHours;
+      if (!hours) hours = (app.slots || []).reduce(function (sum, s) { return sum + hoursOfSlot(s); }, 0);
+      if (!hours && job.time) {
+        var p = String(job.time).split('-');
+        hours = (toMin(p[1]) - toMin(p[0])) / 60;
+      }
+      hours = Math.round(hours * 10) / 10;
+
+      var wage = job.wage || { meal: 0, transport: 0, bonus: '' };
+      var amount = Math.round((job.pay || 0) * hours + (wage.meal || 0) + (wage.transport || 0));
+
+      app.status = 'done';
+      app.realHours = hours;
+      app.amount = amount;
+      app.completedAt = nowStamp();
+      app.rated = false;
+
+      if (!M.student.doneHistory) M.student.doneHistory = [];
+      M.student.doneHistory.unshift({
+        date: '2026-11-02',
+        merchant: job.merchant || M.merchantProfile.name,
+        title: job.title,
+        hours: hours,
+        amount: amount,
+        rating: null,
+        review: '',
+        tags: []
+      });
+
+      var wallet = M.student.wallet;
+      wallet.records.unshift({
+        id: 'r' + (wallet.records.length + 1),
+        title: job.title + ' · ' + (job.settle || '结算'),
+        date: '11.2',
+        amount: amount,
+        status: 'settled'
+      });
+      wallet.balance = (wallet.balance || 0) + amount;
+      if (M.student.stats) M.student.stats.doneJobs = (M.student.stats.doneJobs || 0) + 1;
+
+      return delay({ ok: true, applicationId: appId, hours: hours, amount: amount });
+    },
+
+    /** 评价对方：写入双向评价库，报名标记已评价 */
+    rateCounterpart: function (appId, rating) {
+      var app = findApp(appId);
+      if (!app) return delay({ ok: false, reason: '报名不存在' });
+      if (app.rated) return delay({ ok: false, reason: '该报名已评价' });
+
+      rating = rating || {};
+      var job = findJob(app.jobId) || findMerchantJob(app.jobId);
+      var rec = {
+        id: 'rt' + ((M.ratings || []).length + 1) + '-' + Date.now(),
+        from: 'student',
+        targetId: merchantTargetId(job),
+        name: job ? job.merchant : '未知商家',
+        stars: +rating.stars || 5,
+        tags: clone(rating.tags || []),
+        text: rating.text || '',
+        date: '2026-11-02'
+      };
+      if (!M.ratings) M.ratings = [];
+      M.ratings.push(rec);
+      app.rated = true;
+      app.rating = { stars: rec.stars, tags: clone(rec.tags), text: rec.text };
+
+      return delay({ ok: true, ratingId: rec.id, targetId: rec.targetId });
+    },
+
+    /** 查询某对象收到的评价 */
+    getRatings: function (targetId) {
+      var list = (M.ratings || []).filter(function (r) {
+        return r.targetId === targetId || r.name === targetId;
+      });
+      return delay(list);
+    },
+
+    /** 候选人并排对比 */
+    compareCandidates: function (jobId, ids) {
+      var list = (M.candidates[jobId] || []).slice();
+      if (ids && ids.length) {
+        list = list.filter(function (c) { return ids.indexOf(c.id) > -1; });
+      }
+      var job = findMerchantJob(jobId) || findJob(jobId);
+      var jobSkills = (job && job.skills) ? job.skills : [];
+
+      var rows = list.map(function (c) {
+        return {
+          id: c.id,
+          name: c.name,
+          credit: c.credit,
+          match: c.match,
+          doneJobs: c.doneJobs,
+          punctual: c.signRate,
+          skills: jobSkills.slice(0, c.skillMatch || 0),
+          overlap: c.timeOverlap,
+          historyCount: (c.historyReviews || []).length,
+          status: c.status
+        };
+      }).sort(function (a, b) { return b.match - a.match; });
+
+      return delay(rows);
+    },
+
+    /** 某职位的排班周表 */
+    getScheduleGrid: function (jobId) {
+      var mJob = findMerchantJob(jobId);
+      var jJob = findJob(jobId);
+      if (!mJob && !jJob) return delay({ days: [], rows: [] });
+
+      var days = (mJob && mJob.days) ? mJob.days.slice() : [];
+      if (!days.length && jJob && jJob.slots) {
+        jJob.slots.forEach(function (s) { if (days.indexOf(s.d) === -1) days.push(s.d); });
+      }
+      days.sort(function (a, b) { return (a === 'sat' ? 0 : 1) - (b === 'sat' ? 0 : 1); });
+
+      var rows = [];
+      if (mJob && mJob.time) {
+        var parts = mJob.time.split('-');
+        var st = toMin(parts[0]), en = toMin(parts[1]);
+        if (en <= st) en += 1440;
+        while (st < en) {
+          var next = Math.min(st + 180, en);
+          rows.push({ time: fmtMin(st) + '-' + fmtMin(next), start: st, end: next });
+          st = next;
+        }
+      } else if (jJob && jJob.slots) {
+        var seen = {};
+        jJob.slots.forEach(function (s) {
+          var key = s.s + '-' + s.e;
+          if (seen[key]) return;
+          seen[key] = 1;
+          var sMin = toMin(s.s), eMin = toMin(s.e);
+          if (eMin <= sMin) eMin += 1440;
+          rows.push({ time: s.s + '-' + s.e, start: sMin, end: eMin });
+        });
+      }
+
+      rows.forEach(function (row) {
+        row.cells = {};
+        days.forEach(function (d) { row.cells[d] = []; });
+      });
+
+      (M.candidates[jobId] || []).forEach(function (c) {
+        (c.applySlots || []).forEach(function (s) {
+          if (days.indexOf(s.d) === -1) return;
+          var sMin = toMin(s.s), eMin = toMin(s.e);
+          if (eMin <= sMin) eMin += 1440;
+          rows.forEach(function (row) {
+            if (!row.cells[s.d]) return;
+            if (Math.min(eMin, row.end) - Math.max(sMin, row.start) > 0) {
+              row.cells[s.d].push({ name: c.name, status: c.status });
+            }
+          });
+        });
+      });
+
+      return delay({
+        days: days,
+        rows: rows.map(function (row) { return { time: row.time, cells: row.cells }; })
+      });
+    },
+
+    /** 导出候选人 CSV（带 BOM） */
+    exportCandidatesCsv: function (jobId) {
+      function esc(v) {
+        v = String(v == null ? '' : v);
+        return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      }
+      var list = (M.candidates[jobId] || []).slice().sort(function (a, b) { return b.match - a.match; });
+      var lines = ['姓名,信用分,匹配度,完成单,时段重叠,状态,自荐语'];
+      list.forEach(function (c) {
+        lines.push([
+          c.name, c.credit, c.match, c.doneJobs, c.timeOverlap,
+          CAND_STATUS_CN[c.status] || c.status, c.note
+        ].map(esc).join(','));
+      });
+      return delay('\uFEFF' + lines.join('\r\n'));
+    },
+
+    /** 编辑职位字段 */
+    updateJob: function (jobId, patch) {
+      patch = patch || {};
+      var target = findMerchantJob(jobId) || findJob(jobId);
+      if (!target) return delay({ ok: false, reason: '职位不存在' });
+
+      var keys = ['title', 'category', 'pay', 'unit', 'settle', 'days', 'time',
+        'headcount', 'addr', 'desc', 'skills', 'gap', 'status', 'slots', 'tags',
+        'dressCode', 'contactPerson', 'deadline'];
+      keys.forEach(function (k) {
+        if (patch[k] !== undefined) target[k] = clone(patch[k]);
+      });
+      if (patch.wage) target.wage = Object.assign({}, target.wage || {}, clone(patch.wage));
+
+      return delay({ ok: true, job: target });
+    },
+
+    /** 工资结算预估：base*hours + meal + transport */
+    getWageSummary: function (jobId, slots) {
+      var job = findJob(jobId) || findMerchantJob(jobId);
+      if (!job) return delay({ base: 0, hours: 0, meal: 0, transport: 0, bonus: '', total: 0 });
+
+      var hours = 0;
+      var use = (slots && slots.length) ? slots : (job.slots || []);
+      if (use.length) {
+        hours = use.reduce(function (sum, s) { return sum + hoursOfSlot(s); }, 0);
+      } else if (job.time) {
+        var p = String(job.time).split('-');
+        hours = (toMin(p[1]) - toMin(p[0])) / 60;
+      }
+      hours = Math.round(hours * 10) / 10;
+
+      var wage = job.wage || { meal: 0, transport: 0, bonus: '' };
+      var base = job.pay || 0;
+      var meal = wage.meal || 0;
+      var transport = wage.transport || 0;
+      var total = Math.round(base * hours + meal + transport);
+
+      return delay({
+        base: base, hours: hours, meal: meal, transport: transport,
+        bonus: wage.bonus || '', total: total
+      });
     },
 
     /* ================= 启动自动确认定时器 ================= */
